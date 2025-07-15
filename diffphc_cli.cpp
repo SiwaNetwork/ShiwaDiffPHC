@@ -2,7 +2,7 @@
 #include <getopt.h>
 #include <iomanip>
 
-class DiffPHCCLI {
+class ShiwaDiffPHCCLI {
 private:
     PHCConfig config;
     bool verbose = false;
@@ -13,48 +13,48 @@ private:
 public:
     void printHelp() {
         std::cout
-            << "DiffPHC - Tool for measuring PHC (Precision Time Protocol) differences\n"
-            << "\nUsage: diffphc [OPTIONS]\n"
-            << "\nBasic Options:\n"
-            << "  -c, --count NUM     Number of iterations (default: infinite)\n"
-            << "  -l, --delay NUM     Delay between iterations in microseconds (default: 100000)\n"
-            << "  -s, --samples NUM   Number of PHC reads per measurement (default: 10)\n"
-            << "  -d, --device NUM    Add PTP device to measurement list (can be used multiple times)\n"
-            << "\nInformation:\n"
-            << "  -i, --info          Show PTP clock capabilities and exit\n"
-            << "  -L, --list          List all available PTP devices and exit\n"
-            << "  -h, --help          Display this help and exit\n"
-            << "\nOutput Options:\n"
-            << "  -v, --verbose       Enable verbose output\n"
-            << "  -q, --quiet         Suppress progress output\n"
-            << "  -j, --json          Output results in JSON format\n"
-            << "  -o, --output FILE   Write output to file\n"
-            << "\nAdvanced Options:\n"
-            << "  --continuous        Run continuously (same as -c 0)\n"
-            << "  --csv               Output in CSV format\n"
-            << "  --precision NUM     Set precision for time differences (default: 0)\n"
-            << "\nExamples:\n"
-            << "  diffphc -d 0 -d 1                    # Compare PTP devices 0 and 1\n"
-            << "  diffphc -c 100 -l 250000 -d 2 -d 0  # 100 iterations with 250ms delay\n"
-            << "  diffphc -i                           # Show PTP device info\n"
-            << "  diffphc -L                           # List available devices\n"
-            << "  diffphc -d 0 -d 1 --json -o out.json # JSON output to file\n"
+            << "ShiwaDiffPHC - Инструмент для измерения различий PHC (Протокол точного времени)\n"
+            << "\nИспользование: shiwadiffphc [ОПЦИИ]\n"
+            << "\nОсновные опции:\n"
+            << "  -c, --count NUM     Количество итераций (по умолчанию: бесконечно)\n"
+            << "  -l, --delay NUM     Задержка между итерациями в микросекундах (по умолчанию: 100000)\n"
+            << "  -s, --samples NUM   Количество чтений PHC на измерение (по умолчанию: 10)\n"
+            << "  -d, --device NUM    Добавить PTP устройство в список измерений (можно использовать несколько раз)\n"
+            << "\nИнформация:\n"
+            << "  -i, --info          Показать возможности PTP часов и выйти\n"
+            << "  -L, --list          Список всех доступных PTP устройств и выход\n"
+            << "  -h, --help          Отобразить эту справку и выйти\n"
+            << "\nОпции вывода:\n"
+            << "  -v, --verbose       Включить подробный вывод\n"
+            << "  -q, --quiet         Подавить вывод прогресса\n"
+            << "  -j, --json          Вывод результатов в формате JSON\n"
+            << "  -o, --output FILE   Записать вывод в файл\n"
+            << "\nРасширенные опции:\n"
+            << "  --continuous        Запуск непрерывно (то же что -c 0)\n"
+            << "  --csv               Вывод в формате CSV\n"
+            << "  --precision NUM     Установить точность для временных различий (по умолчанию: 0)\n"
+            << "\nПримеры:\n"
+            << "  shiwadiffphc -d 0 -d 1                    # Сравнить PTP устройства 0 и 1\n"
+            << "  shiwadiffphc -c 100 -l 250000 -d 2 -d 0  # 100 итераций с задержкой 250мс\n"
+            << "  shiwadiffphc -i                           # Показать информацию о PTP устройствах\n"
+            << "  shiwadiffphc -L                           # Список доступных устройств\n"
+            << "  shiwadiffphc -d 0 -d 1 --json -o out.json # Вывод JSON в файл\n"
             << std::endl;
     }
 
     void printVersion() {
-        std::cout << "DiffPHC version 1.1.0" << std::endl;
-        std::cout << "Precision Time Protocol difference measurement tool" << std::endl;
+        std::cout << "ShiwaDiffPHC версия 1.1.0" << std::endl;
+        std::cout << "Инструмент измерения различий протокола точного времени" << std::endl;
     }
 
     void listDevices() {
         auto devices = DiffPHCCore::getAvailablePHCDevices();
         if (devices.empty()) {
-            std::cout << "No PTP devices found." << std::endl;
+            std::cout << "PTP устройства не найдены." << std::endl;
             return;
         }
 
-        std::cout << "Available PTP devices:" << std::endl;
+        std::cout << "Доступные PTP устройства:" << std::endl;
         for (int device : devices) {
             std::cout << "  /dev/ptp" << device;
             
@@ -335,6 +335,6 @@ public:
 };
 
 int main(int argc, char** argv) {
-    DiffPHCCLI cli;
+    ShiwaDiffPHCCLI cli;
     return cli.run(argc, argv);
 }

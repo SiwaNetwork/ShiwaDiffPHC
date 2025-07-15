@@ -4,42 +4,42 @@
 # This script demonstrates the capabilities of the enhanced DiffPHC tools
 
 echo "=================================="
-echo "DiffPHC Enhanced Demo"
+echo "ShiwaDiffPHC Enhanced Demo"
 echo "=================================="
 echo ""
 
 # Check if binaries exist
 echo "1. Checking available binaries..."
-if [ -f "./diffphc" ]; then
-    echo "   ✓ Legacy CLI (diffphc) - Available"
+if [ -f "./shiwadiffphc" ]; then
+    echo "   ✓ Legacy CLI (shiwadiffphc) - Available"
 else
-    echo "   ✗ Legacy CLI (diffphc) - Not found"
+    echo "   ✗ Legacy CLI (shiwadiffphc) - Not found"
 fi
 
-if [ -f "./diffphc-cli" ]; then
-    echo "   ✓ Enhanced CLI (diffphc-cli) - Available"
+if [ -f "./shiwadiffphc-cli" ]; then
+    echo "   ✓ Enhanced CLI (shiwadiffphc-cli) - Available"
 else
-    echo "   ✗ Enhanced CLI (diffphc-cli) - Not found"
+    echo "   ✗ Enhanced CLI (shiwadiffphc-cli) - Not found"
 fi
 
-if [ -f "./diffphc-gui" ]; then
-    echo "   ✓ GUI (diffphc-gui) - Available"
+if [ -f "./shiwadiffphc-gui" ]; then
+    echo "   ✓ GUI (shiwadiffphc-gui) - Available"
 else
-    echo "   ✗ GUI (diffphc-gui) - Not built (requires Qt5)"
+    echo "   ✗ GUI (shiwadiffphc-gui) - Not built (requires Qt5)"
 fi
 echo ""
 
 # Show version information
 echo "2. Version Information:"
-if [ -f "./diffphc-cli" ]; then
-    ./diffphc-cli --version
+if [ -f "./shiwadiffphc-cli" ]; then
+    ./shiwadiffphc-cli --version
 fi
 echo ""
 
 # Device discovery
 echo "3. PTP Device Discovery:"
-if [ -f "./diffphc-cli" ]; then
-    ./diffphc-cli --list
+if [ -f "./shiwadiffphc-cli" ]; then
+    ./shiwadiffphc-cli --list
 else
     echo "   Enhanced CLI not available"
 fi
@@ -48,19 +48,19 @@ echo ""
 # Show capabilities comparison
 echo "4. Feature Comparison:"
 echo ""
-echo "   Legacy CLI (diffphc):"
+echo "   Legacy CLI (shiwadiffphc):"
 echo "   - Basic command-line interface"
 echo "   - Simple output format"
 echo "   - Original functionality"
 echo ""
-echo "   Enhanced CLI (diffphc-cli):"
+echo "   Enhanced CLI (shiwadiffphc-cli):"
 echo "   - Rich command-line options"
 echo "   - Multiple output formats (Table, JSON, CSV)"
 echo "   - Auto-device detection"
 echo "   - Verbose logging"
 echo "   - File output support"
 echo ""
-echo "   GUI (diffphc-gui):"
+echo "   GUI (shiwadiffphc-gui):"
 echo "   - Graphical user interface"
 echo "   - Real-time measurement display"
 echo "   - Device management"
@@ -72,21 +72,21 @@ echo ""
 echo "5. Usage Examples:"
 echo ""
 echo "   List available devices:"
-echo "   $ ./diffphc-cli --list"
+echo "   $ ./shiwadiffphc-cli --list"
 echo ""
 echo "   Show device information:"
-echo "   $ ./diffphc-cli --info"
+echo "   $ ./shiwadiffphc-cli --info"
 echo ""
 echo "   Compare two devices (if available):"
-echo "   $ sudo ./diffphc-cli -d 0 -d 1 -c 10"
+echo "   $ sudo ./shiwadiffphc-cli -d 0 -d 1 -c 10"
 echo ""
 echo "   Export data to CSV:"
-echo "   $ sudo ./diffphc-cli -d 0 -d 1 -c 5 --csv -o results.csv"
+echo "   $ sudo ./shiwadiffphc-cli -d 0 -d 1 -c 5 --csv -o results.csv"
 echo ""
 echo "   Launch GUI (if built):"
 echo "   $ sudo ./launch_gui.sh"
 echo "   or"
-echo "   $ sudo ./diffphc-gui"
+echo "   $ sudo ./shiwadiffphc-gui"
 echo ""
 
 # System requirements
@@ -120,6 +120,6 @@ echo "Demo completed!"
 echo ""
 echo "To try the tools:"
 echo "1. Check for PTP devices: ls /dev/ptp*"
-echo "2. Run with root privileges: sudo ./diffphc-cli --list"
+echo "2. Run with root privileges: sudo ./shiwadiffphc-cli --list"
 echo "3. For GUI: sudo ./launch_gui.sh (if built)"
 echo "=================================="

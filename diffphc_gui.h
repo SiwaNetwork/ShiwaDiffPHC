@@ -1,5 +1,5 @@
-#ifndef DIFFPHC_GUI_H
-#define DIFFPHC_GUI_H
+#ifndef SHIWADIFFPHC_GUI_H
+#define SHIWADIFFPHC_GUI_H
 
 #include <QApplication>
 #include <QMainWindow>
@@ -28,12 +28,12 @@
 
 #include "diffphc_core.h"
 
-class DiffPHCMainWindow : public QMainWindow {
+class ShiwaDiffPHCMainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    explicit DiffPHCMainWindow(QWidget *parent = nullptr);
-    ~DiffPHCMainWindow();
+    explicit ShiwaDiffPHCMainWindow(QWidget *parent = nullptr);
+    ~ShiwaDiffPHCMainWindow();
 
 private slots:
     void onStartMeasurement();
@@ -106,4 +106,4 @@ private:
     std::vector<int> m_availableDevices;
 };
 
-#endif // DIFFPHC_GUI_H
+#endif // SHIWADIFFPHC_GUI_H

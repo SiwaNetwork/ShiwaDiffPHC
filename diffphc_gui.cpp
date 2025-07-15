@@ -7,14 +7,14 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
-DiffPHCMainWindow::DiffPHCMainWindow(QWidget *parent)
+ShiwaShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_centralWidget(nullptr)
     , m_measurementTimer(new QTimer(this))
     , m_measuring(false)
     , m_currentIteration(0)
 {
-    setWindowTitle("DiffPHC - Precision Time Protocol Difference Analyzer");
+    setWindowTitle("ShiwaDiffPHC - Анализатор различий протокола точного времени");
     setMinimumSize(800, 600);
     resize(1200, 800);
 
@@ -24,7 +24,7 @@ DiffPHCMainWindow::DiffPHCMainWindow(QWidget *parent)
     
     updateDeviceList();
     
-    connect(m_measurementTimer, &QTimer::timeout, this, &DiffPHCMainWindow::onTimerUpdate);
+    connect(m_measurementTimer, &QTimer::timeout, this, &ShiwaDiffPHCMainWindow::onTimerUpdate);
     
     // Initialize configuration
     m_currentConfig.count = 0;
@@ -32,16 +32,16 @@ DiffPHCMainWindow::DiffPHCMainWindow(QWidget *parent)
     m_currentConfig.samples = 10;
     m_currentConfig.debug = false;
     
-    logMessage("DiffPHC GUI initialized");
+    logMessage("ShiwaDiffPHC GUI инициализирован");
 }
 
-DiffPHCMainWindow::~DiffPHCMainWindow() {
+ShiwaShiwaDiffPHCMainWindow::~ShiwaDiffPHCMainWindow() {
     if (m_measuring) {
         onStopMeasurement();
     }
 }
 
-void DiffPHCMainWindow::setupUI() {
+void ShiwaShiwaDiffPHCMainWindow::setupUI() {
     m_centralWidget = new QWidget;
     setCentralWidget(m_centralWidget);
     
@@ -54,19 +54,19 @@ void DiffPHCMainWindow::setupUI() {
     setupResultsPanel();
 }
 
-void DiffPHCMainWindow::setupMenuBar() {
+void ShiwaShiwaDiffPHCMainWindow::setupMenuBar() {
     auto* fileMenu = menuBar()->addMenu("&File");
     
     auto* loadConfigAction = fileMenu->addAction("&Load Configuration...");
-    connect(loadConfigAction, &QAction::triggered, this, &DiffPHCMainWindow::onLoadConfig);
+    connect(loadConfigAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onLoadConfig);
     
     auto* saveConfigAction = fileMenu->addAction("&Save Configuration...");
-    connect(saveConfigAction, &QAction::triggered, this, &DiffPHCMainWindow::onSaveConfig);
+    connect(saveConfigAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onSaveConfig);
     
     fileMenu->addSeparator();
     
     auto* saveResultsAction = fileMenu->addAction("Save &Results...");
-    connect(saveResultsAction, &QAction::triggered, this, &DiffPHCMainWindow::onSaveResults);
+    connect(saveResultsAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onSaveResults);
     
     fileMenu->addSeparator();
     
@@ -74,11 +74,11 @@ void DiffPHCMainWindow::setupMenuBar() {
     connect(exitAction, &QAction::triggered, this, &QWidget::close);
     
     auto* helpMenu = menuBar()->addMenu("&Help");
-    auto* aboutAction = helpMenu->addAction("&About DiffPHC");
-    connect(aboutAction, &QAction::triggered, this, &DiffPHCMainWindow::onAbout);
+    auto* aboutAction = helpMenu->addAction("&О программе ShiwaDiffPHC");
+    connect(aboutAction, &QAction::triggered, this, &ShiwaShiwaDiffPHCMainWindow::onAbout);
 }
 
-void DiffPHCMainWindow::setupControlPanel() {
+void ShiwaDiffPHCMainWindow::setupControlPanel() {
     auto* controlWidget = new QWidget;
     auto* controlLayout = new QVBoxLayout(controlWidget);
     
@@ -98,7 +98,7 @@ void DiffPHCMainWindow::setupControlPanel() {
         m_deviceCheckBoxes[i] = new QCheckBox(QString("PTP Device %1").arg(i));
         m_deviceCheckBoxes[i]->setVisible(false);
         deviceLayout->addWidget(m_deviceCheckBoxes[i]);
-        connect(m_deviceCheckBoxes[i], &QCheckBox::toggled, this, &DiffPHCMainWindow::onDeviceSelectionChanged);
+        connect(m_deviceCheckBoxes[i], &QCheckBox::toggled, this, &ShiwaDiffPHCMainWindow::onDeviceSelectionChanged);
     }
     
     // Configuration Group
@@ -131,11 +131,11 @@ void DiffPHCMainWindow::setupControlPanel() {
     configLayout->addWidget(m_verboseCheckBox, 4, 0, 1, 2);
     
     // Connect configuration change signals
-    connect(m_countSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &DiffPHCMainWindow::onConfigChanged);
-    connect(m_delaySpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &DiffPHCMainWindow::onConfigChanged);
-    connect(m_samplesSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &DiffPHCMainWindow::onConfigChanged);
-    connect(m_continuousCheckBox, &QCheckBox::toggled, this, &DiffPHCMainWindow::onConfigChanged);
-    connect(m_verboseCheckBox, &QCheckBox::toggled, this, &DiffPHCMainWindow::onConfigChanged);
+    connect(m_countSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &ShiwaDiffPHCMainWindow::onConfigChanged);
+    connect(m_delaySpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &ShiwaDiffPHCMainWindow::onConfigChanged);
+    connect(m_samplesSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &ShiwaDiffPHCMainWindow::onConfigChanged);
+    connect(m_continuousCheckBox, &QCheckBox::toggled, this, &ShiwaDiffPHCMainWindow::onConfigChanged);
+    connect(m_verboseCheckBox, &QCheckBox::toggled, this, &ShiwaDiffPHCMainWindow::onConfigChanged);
     
     // Control Group
     m_controlGroup = new QGroupBox("Control");
@@ -155,12 +155,12 @@ void DiffPHCMainWindow::setupControlPanel() {
     controlButtonLayout->addWidget(m_saveButton);
     controlButtonLayout->addWidget(m_clearButton);
     
-    connect(m_startButton, &QPushButton::clicked, this, &DiffPHCMainWindow::onStartMeasurement);
-    connect(m_stopButton, &QPushButton::clicked, this, &DiffPHCMainWindow::onStopMeasurement);
-    connect(m_saveButton, &QPushButton::clicked, this, &DiffPHCMainWindow::onSaveResults);
-    connect(m_clearButton, &QPushButton::clicked, this, &DiffPHCMainWindow::clearResults);
-    connect(m_refreshButton, &QPushButton::clicked, this, &DiffPHCMainWindow::onRefreshDevices);
-    connect(m_infoButton, &QPushButton::clicked, this, &DiffPHCMainWindow::onShowDeviceInfo);
+    connect(m_startButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onStartMeasurement);
+    connect(m_stopButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onStopMeasurement);
+    connect(m_saveButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onSaveResults);
+    connect(m_clearButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::clearResults);
+    connect(m_refreshButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onRefreshDevices);
+    connect(m_infoButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onShowDeviceInfo);
     
     controlLayout->addWidget(m_deviceGroup);
     controlLayout->addWidget(m_configGroup);
@@ -170,7 +170,7 @@ void DiffPHCMainWindow::setupControlPanel() {
     m_mainSplitter->addWidget(controlWidget);
 }
 
-void DiffPHCMainWindow::setupResultsPanel() {
+void ShiwaDiffPHCMainWindow::setupResultsPanel() {
     m_tabWidget = new QTabWidget;
     
     // Results Table Tab
@@ -200,7 +200,7 @@ void DiffPHCMainWindow::setupResultsPanel() {
     m_mainSplitter->setSizes({300, 700}); // 30% control panel, 70% results
 }
 
-void DiffPHCMainWindow::setupStatusBar() {
+void ShiwaDiffPHCMainWindow::setupStatusBar() {
     m_statusLabel = new QLabel("Ready");
     m_deviceCountLabel = new QLabel("Devices: 0");
     m_progressBar = new QProgressBar;
@@ -211,7 +211,7 @@ void DiffPHCMainWindow::setupStatusBar() {
     statusBar()->addPermanentWidget(m_progressBar);
 }
 
-void DiffPHCMainWindow::updateDeviceList() {
+void ShiwaDiffPHCMainWindow::updateDeviceList() {
     m_availableDevices = DiffPHCCore::getAvailablePHCDevices();
     
     // Hide all checkboxes first
@@ -233,7 +233,7 @@ void DiffPHCMainWindow::updateDeviceList() {
     logMessage(QString("Found %1 PTP devices").arg(m_availableDevices.size()));
 }
 
-void DiffPHCMainWindow::onStartMeasurement() {
+void ShiwaDiffPHCMainWindow::onStartMeasurement() {
     if (!validateConfiguration()) {
         return;
     }
@@ -267,7 +267,7 @@ void DiffPHCMainWindow::onStartMeasurement() {
     logMessage("Measurement started");
 }
 
-void DiffPHCMainWindow::onStopMeasurement() {
+void ShiwaDiffPHCMainWindow::onStopMeasurement() {
     m_measuring = false;
     m_measurementTimer->stop();
     
@@ -279,7 +279,7 @@ void DiffPHCMainWindow::onStopMeasurement() {
     logMessage("Measurement stopped");
 }
 
-void DiffPHCMainWindow::onTimerUpdate() {
+void ShiwaDiffPHCMainWindow::onTimerUpdate() {
     if (!m_measuring) {
         return;
     }
@@ -310,7 +310,7 @@ void DiffPHCMainWindow::onTimerUpdate() {
     }
 }
 
-void DiffPHCMainWindow::updateResultsTable(const PHCResult& result) {
+void ShiwaDiffPHCMainWindow::updateResultsTable(const PHCResult& result) {
     if (result.differences.empty()) return;
     
     const auto& devices = result.devices;
@@ -348,7 +348,7 @@ void DiffPHCMainWindow::updateResultsTable(const PHCResult& result) {
     m_resultsTable->scrollToBottom();
 }
 
-void DiffPHCMainWindow::onDeviceSelectionChanged() {
+void ShiwaDiffPHCMainWindow::onDeviceSelectionChanged() {
     // Update device count and enable/disable start button
     int selectedCount = 0;
     for (int i = 0; i < 8; ++i) {
@@ -366,7 +366,7 @@ void DiffPHCMainWindow::onDeviceSelectionChanged() {
     }
 }
 
-void DiffPHCMainWindow::onConfigChanged() {
+void ShiwaDiffPHCMainWindow::onConfigChanged() {
     if (m_continuousCheckBox->isChecked()) {
         m_countSpinBox->setValue(0);
         m_countSpinBox->setEnabled(false);
@@ -375,7 +375,7 @@ void DiffPHCMainWindow::onConfigChanged() {
     }
 }
 
-bool DiffPHCMainWindow::validateConfiguration() {
+bool ShiwaDiffPHCMainWindow::validateConfiguration() {
     PHCConfig config = getCurrentConfig();
     
     if (config.devices.size() < 2) {
@@ -394,7 +394,7 @@ bool DiffPHCMainWindow::validateConfiguration() {
     return true;
 }
 
-PHCConfig DiffPHCMainWindow::getCurrentConfig() {
+PHCConfig ShiwaDiffPHCMainWindow::getCurrentConfig() {
     PHCConfig config;
     
     config.count = m_countSpinBox->value();
@@ -411,7 +411,7 @@ PHCConfig DiffPHCMainWindow::getCurrentConfig() {
     return config;
 }
 
-void DiffPHCMainWindow::clearResults() {
+void ShiwaDiffPHCMainWindow::clearResults() {
     m_results.clear();
     m_resultsTable->setRowCount(0);
     m_resultsTable->setColumnCount(0);
@@ -419,12 +419,12 @@ void DiffPHCMainWindow::clearResults() {
     logMessage("Results cleared");
 }
 
-void DiffPHCMainWindow::logMessage(const QString& message) {
+void ShiwaDiffPHCMainWindow::logMessage(const QString& message) {
     QString timestamp = QDateTime::currentDateTime().toString("hh:mm:ss");
     m_logTextEdit->appendPlainText(QString("[%1] %2").arg(timestamp, message));
 }
 
-void DiffPHCMainWindow::onSaveResults() {
+void ShiwaDiffPHCMainWindow::onSaveResults() {
     if (m_results.empty()) {
         QMessageBox::information(this, "No Data", "No measurement results to save.");
         return;
@@ -441,17 +441,17 @@ void DiffPHCMainWindow::onSaveResults() {
     logMessage(QString("Results saved to %1").arg(fileName));
 }
 
-void DiffPHCMainWindow::onLoadConfig() {
+void ShiwaDiffPHCMainWindow::onLoadConfig() {
     // Implementation for loading configuration
     logMessage("Load configuration requested");
 }
 
-void DiffPHCMainWindow::onSaveConfig() {
+void ShiwaDiffPHCMainWindow::onSaveConfig() {
     // Implementation for saving configuration
     logMessage("Save configuration requested");
 }
 
-void DiffPHCMainWindow::onShowDeviceInfo() {
+void ShiwaDiffPHCMainWindow::onShowDeviceInfo() {
     QString info;
     for (int device : m_availableDevices) {
         info += QString("=== PTP Device %1 ===\n").arg(device);
@@ -462,28 +462,28 @@ void DiffPHCMainWindow::onShowDeviceInfo() {
     QMessageBox::information(this, "Device Information", info);
 }
 
-void DiffPHCMainWindow::onRefreshDevices() {
+void ShiwaDiffPHCMainWindow::onRefreshDevices() {
     updateDeviceList();
 }
 
-void DiffPHCMainWindow::onAbout() {
-    QMessageBox::about(this, "About DiffPHC",
-                      "DiffPHC v1.1.0\n\n"
-                      "Precision Time Protocol (PTP) Difference Analyzer\n\n"
-                      "This tool measures time differences between PTP devices\n"
-                      "to analyze clock synchronization accuracy.\n\n"
-                      "Requires root privileges to access PTP devices.");
+void ShiwaDiffPHCMainWindow::onAbout() {
+    QMessageBox::about(this, "О программе ShiwaDiffPHC",
+                      "ShiwaDiffPHC v1.1.0\n\n"
+                      "Анализатор различий протокола точного времени (PTP)\n\n"
+                      "Этот инструмент измеряет временные различия между PTP устройствами\n"
+                      "для анализа точности синхронизации часов.\n\n"
+                      "Требует привилегии root для доступа к PTP устройствам.");
 }
 
 // Main function for GUI application
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    app.setApplicationName("DiffPHC");
+    app.setApplicationName("ShiwaDiffPHC");
     app.setApplicationVersion("1.1.0");
-    app.setOrganizationName("PTP Tools");
+    app.setOrganizationName("Shiwa Tools");
     
-    DiffPHCMainWindow window;
+    ShiwaDiffPHCMainWindow window;
     window.show();
     
     return app.exec();

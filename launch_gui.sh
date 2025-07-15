@@ -1,24 +1,24 @@
 #!/bin/bash
 
-# DiffPHC GUI Launcher Script
-# This script helps launch the DiffPHC GUI with proper environment setup
+# ShiwaDiffPHC GUI Launcher Script
+# This script helps launch the ShiwaDiffPHC GUI with proper environment setup
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GUI_BINARY="$SCRIPT_DIR/diffphc-gui"
+GUI_BINARY="$SCRIPT_DIR/shiwadiffphc-gui"
 
-echo "DiffPHC GUI Launcher"
+echo "ShiwaDiffPHC GUI Launcher"
 echo "===================="
 
 # Check if GUI binary exists
 if [ ! -f "$GUI_BINARY" ]; then
-    echo "Error: diffphc-gui not found at $GUI_BINARY"
-    echo "Please build the GUI first with: make diffphc-gui"
+    echo "Error: shiwadiffphc-gui not found at $GUI_BINARY"
+    echo "Please build the GUI first with: make shiwadiffphc-gui"
     exit 1
 fi
 
 # Check if we're running as root
 if [ "$EUID" -ne 0 ]; then
-    echo "Warning: DiffPHC requires root privileges to access PTP devices."
+    echo "Warning: ShiwaDiffPHC requires root privileges to access PTP devices."
     echo "Attempting to restart with sudo..."
     exec sudo "$0" "$@"
 fi
@@ -38,7 +38,7 @@ if [ "$PTP_DEVICES" -eq 0 ]; then
     echo ""
 fi
 
-echo "Starting DiffPHC GUI..."
+echo "Starting ShiwaDiffPHC GUI..."
 echo "Found $PTP_DEVICES PTP device(s)"
 echo ""
 

@@ -1,188 +1,188 @@
-# DiffPHC
+# ShiwaDiffPHC
 
-DiffPHC is a comprehensive tool for measuring time differences between Precision Time Protocol (PTP) devices in your system. It now features both enhanced command-line and graphical user interfaces for maximum usability.
+ShiwaDiffPHC — это комплексный инструмент для измерения временных различий между устройствами Precision Time Protocol (PTP) в вашей системе. Теперь он включает как расширенный интерфейс командной строки, так и графический пользовательский интерфейс для максимального удобства использования.
 
-## Features
+## Возможности
 
-### Core Functionality
-- Measure time differences between multiple PTP devices
-- High-precision timestamp analysis using PTP_SYS_OFFSET_EXTENDED
-- Real-time monitoring capabilities
-- Statistical analysis of clock drift
+### Основной функционал
+- Измерение временных различий между множественными PTP устройствами
+- Высокоточный анализ временных меток с использованием PTP_SYS_OFFSET_EXTENDED
+- Возможности мониторинга в реальном времени
+- Статистический анализ дрейфа часов
 
-### User Interfaces
+### Пользовательские интерфейсы
 
-#### 1. Enhanced CLI Interface (`diffphc-cli`)
-- **Rich command-line options** with long and short forms
-- **Multiple output formats**: table, JSON, CSV
-- **Auto-device detection** when no devices specified
-- **Verbose logging** and debugging support
-- **File output** capabilities
-- **Device information** display
+#### 1. Расширенный CLI интерфейс (`shiwadiffphc-cli`)
+- **Богатые опции командной строки** с короткими и длинными формами
+- **Множественные форматы вывода**: таблица, JSON, CSV
+- **Автоопределение устройств** когда устройства не указаны
+- **Подробное логирование** и поддержка отладки
+- **Возможности вывода в файл**
+- **Отображение информации об устройствах**
 
-#### 2. Modern GUI Interface (`diffphc-gui`)
-- **Intuitive graphical interface** built with Qt5
-- **Real-time measurement display** with live tables
-- **Device management** with automatic detection and refresh
-- **Progress tracking** with visual indicators
-- **Results export** in multiple formats
-- **Configuration save/load** functionality
-- **Built-in logging** and status monitoring
+#### 2. Современный GUI интерфейс (`shiwadiffphc-gui`)
+- **Интуитивный графический интерфейс** построенный на Qt5
+- **Отображение измерений в реальном времени** с живыми таблицами
+- **Управление устройствами** с автоматическим обнаружением и обновлением
+- **Отслеживание прогресса** с визуальными индикаторами
+- **Экспорт результатов** в множественных форматах
+- **Функции сохранения/загрузки конфигурации**
+- **Встроенное логирование** и мониторинг состояния
 
-#### 3. Legacy CLI Interface (`diffphc`)
-- Original command-line interface for backward compatibility
+#### 3. Унаследованный CLI интерфейс (`shiwadiffphc`)
+- Оригинальный интерфейс командной строки для обратной совместимости
 
-## Installation
+## Установка
 
-### Dependencies
+### Зависимости
 
-#### For CLI tools:
+#### Для CLI инструментов:
 ```bash
 sudo apt-get install build-essential
 ```
 
-#### For GUI tool (additional):
+#### Для GUI инструмента (дополнительно):
 ```bash
 sudo apt-get install qtbase5-dev qt5-qmake
 ```
 
-### Quick Install
+### Быстрая установка
 ```bash
-# Install dependencies automatically
+# Автоматическая установка зависимостей
 make install-deps
 
-# Build all tools
+# Сборка всех инструментов
 make
 
-# Install system-wide
+# Установка в систему
 sudo make install
 ```
 
-### Manual Build
+### Ручная сборка
 ```bash
-# Check dependencies
+# Проверка зависимостей
 make check-deps
 
-# Build specific targets
-make diffphc-cli    # CLI only
-make diffphc-gui    # GUI (requires Qt5)
-make diffphc        # Legacy version
+# Сборка конкретных целей
+make shiwadiffphc-cli    # Только CLI
+make shiwadiffphc-gui    # GUI (требует Qt5)
+make shiwadiffphc        # Унаследованная версия
 ```
 
-## Usage
+## Использование
 
-### Enhanced CLI Interface
+### Расширенный CLI интерфейс
 
-#### Basic Usage
+#### Базовое использование
 ```bash
-# Auto-detect and compare first two devices
-diffphc-cli
+# Автообнаружение и сравнение первых двух устройств
+shiwadiffphc-cli
 
-# Compare specific devices
-diffphc-cli -d 0 -d 1
+# Сравнение конкретных устройств
+shiwadiffphc-cli -d 0 -d 1
 
-# Run 100 iterations with custom delay
-diffphc-cli -c 100 -l 250000 -d 0 -d 1
+# Запуск 100 итераций с пользовательской задержкой
+shiwadiffphc-cli -c 100 -l 250000 -d 0 -d 1
 ```
 
-#### Information Commands
+#### Информационные команды
 ```bash
-# List all available PTP devices
-diffphc-cli --list
+# Список всех доступных PTP устройств
+shiwadiffphc-cli --list
 
-# Show device capabilities
-diffphc-cli --info
+# Показать возможности устройств
+shiwadiffphc-cli --info
 
-# Show device info for specific devices
-diffphc-cli -i -d 0 -d 1
+# Показать информацию об устройствах для конкретных устройств
+shiwadiffphc-cli -i -d 0 -d 1
 ```
 
-#### Output Options
+#### Опции вывода
 ```bash
-# JSON output
-diffphc-cli -d 0 -d 1 --json
+# Вывод в JSON
+shiwadiffphc-cli -d 0 -d 1 --json
 
-# CSV output with file save
-diffphc-cli -d 0 -d 1 --csv -o results.csv
+# Вывод в CSV с сохранением в файл
+shiwadiffphc-cli -d 0 -d 1 --csv -o results.csv
 
-# Verbose output
-diffphc-cli -d 0 -d 1 --verbose
+# Подробный вывод
+shiwadiffphc-cli -d 0 -d 1 --verbose
 ```
 
-#### Advanced Options
+#### Расширенные опции
 ```bash
-# Continuous measurement
-diffphc-cli -d 0 -d 1 --continuous
+# Непрерывное измерение
+shiwadiffphc-cli -d 0 -d 1 --continuous
 
-# Custom sampling
-diffphc-cli -d 0 -d 1 -s 25 -l 50000
+# Пользовательская выборка
+shiwadiffphc-cli -d 0 -d 1 -s 25 -l 50000
 
-# Help and version
-diffphc-cli --help
-diffphc-cli --version
+# Справка и версия
+shiwadiffphc-cli --help
+shiwadiffphc-cli --version
 ```
 
-### GUI Interface
+### GUI интерфейс
 
-Launch the GUI application:
+Запуск GUI приложения:
 ```bash
-diffphc-gui
+shiwadiffphc-gui
 ```
 
-#### GUI Features:
-1. **Device Selection**: Check boxes for available PTP devices
-2. **Configuration Panel**: Set iterations, delay, and samples
-3. **Real-time Control**: Start/stop measurements with progress tracking
-4. **Results Display**: Live table updates with timestamp information
-5. **Export Options**: Save results in CSV or JSON format
-6. **Device Management**: Refresh device list and view device information
-7. **Logging**: Built-in log panel for monitoring operations
+#### Возможности GUI:
+1. **Выбор устройства**: Флажки для доступных PTP устройств
+2. **Панель конфигурации**: Установка итераций, задержки и выборок
+3. **Управление в реальном времени**: Старт/стоп измерений с отслеживанием прогресса
+4. **Отображение результатов**: Обновления таблицы в реальном времени с информацией о временных метках
+5. **Опции экспорта**: Сохранение результатов в форматах CSV или JSON
+6. **Управление устройствами**: Обновление списка устройств и просмотр информации об устройствах
+7. **Логирование**: Встроенная панель журнала для мониторинга операций
 
-#### GUI Requirements:
-- Root privileges (sudo) to access PTP devices
-- Qt5 libraries installed
-- X11 or Wayland display server
+#### Требования GUI:
+- Привилегии root (sudo) для доступа к PTP устройствам
+- Установленные библиотеки Qt5
+- Сервер отображения X11 или Wayland
 
-### Legacy Interface
+### Унаследованный интерфейс
 
 ```bash
-# Original usage (backward compatibility)
-diffphc -c 100 -l 250000 -d 2 -d 0
-diffphc -d 0 -d 1 -d 0
-diffphc -i  # Show device info
+# Оригинальное использование (обратная совместимость)
+shiwadiffphc -c 100 -l 250000 -d 2 -d 0
+shiwadiffphc -d 0 -d 1 -d 0
+shiwadiffphc -i  # Показать информацию об устройстве
 ```
 
-## Command Line Options
+## Опции командной строки
 
-### Enhanced CLI (`diffphc-cli`)
+### Расширенный CLI (`shiwadiffphc-cli`)
 
-| Option | Long Form | Description |
-|--------|-----------|-------------|
-| `-c NUM` | `--count NUM` | Number of iterations (0 = infinite) |
-| `-l NUM` | `--delay NUM` | Delay between iterations (μs) |
-| `-s NUM` | `--samples NUM` | Number of PHC reads per measurement |
-| `-d NUM` | `--device NUM` | Add PTP device (repeatable) |
-| `-i` | `--info` | Show PTP device information |
-| `-L` | `--list` | List available PTP devices |
-| `-v` | `--verbose` | Enable verbose output |
-| `-q` | `--quiet` | Suppress progress output |
-| `-j` | `--json` | Output in JSON format |
-| `-o FILE` | `--output FILE` | Write output to file |
-| | `--continuous` | Run continuously (same as -c 0) |
-| | `--csv` | Output in CSV format |
-| | `--version` | Show version information |
-| `-h` | `--help` | Display help message |
+| Опция | Длинная форма | Описание |
+|-------|---------------|----------|
+| `-c NUM` | `--count NUM` | Количество итераций (0 = бесконечно) |
+| `-l NUM` | `--delay NUM` | Задержка между итерациями (мкс) |
+| `-s NUM` | `--samples NUM` | Количество чтений PHC на измерение |
+| `-d NUM` | `--device NUM` | Добавить PTP устройство (повторяемо) |
+| `-i` | `--info` | Показать информацию о PTP устройстве |
+| `-L` | `--list` | Список доступных PTP устройств |
+| `-v` | `--verbose` | Включить подробный вывод |
+| `-q` | `--quiet` | Подавить вывод прогресса |
+| `-j` | `--json` | Вывод в формате JSON |
+| `-o FILE` | `--output FILE` | Записать вывод в файл |
+| | `--continuous` | Запуск непрерывно (то же что -c 0) |
+| | `--csv` | Вывод в формате CSV |
+| | `--version` | Показать информацию о версии |
+| `-h` | `--help` | Отобразить справочное сообщение |
 
-## Output Formats
+## Форматы вывода
 
-### Table Format (Default)
+### Табличный формат (по умолчанию)
 ```
           ptp0    ptp1
 ptp0      0       -1234
 ptp1      1234    0
 ```
 
-### JSON Format
+### Формат JSON
 ```json
 {
   "success": true,
@@ -194,104 +194,100 @@ ptp1      1234    0
 }
 ```
 
-### CSV Format
+### Формат CSV
 ```csv
 iteration,timestamp,ptp0-ptp0,ptp0-ptp1,ptp1-ptp0,ptp1-ptp1
 0,1640995200000000000,0,-1234,1234,0
 ```
 
-## System Requirements
+## Системные требования
 
-- **Linux kernel** with PTP support
-- **Root privileges** to access `/dev/ptp*` devices
-- **PTP devices** available in system
-- **C++17 compatible compiler**
-- **Qt5 development libraries** (for GUI)
+- **Ядро Linux** с поддержкой PTP
+- **Привилегии root** для доступа к устройствам `/dev/ptp*`
+- **PTP устройства** доступные в системе
+- **Компилятор совместимый с C++17**
+- **Библиотеки разработки Qt5** (для GUI)
 
-## Examples
+## Примеры
 
-### CLI Examples
+### Примеры CLI
 ```bash
-# Quick device comparison
-diffphc-cli -d 0 -d 1
+# Быстрое сравнение устройств
+shiwadiffphc-cli -d 0 -d 1
 
-# High-frequency monitoring
-diffphc-cli -d 0 -d 1 -c 1000 -l 10000
+# Высокочастотный мониторинг
+shiwadiffphc-cli -d 0 -d 1 -c 1000 -l 10000
 
-# Export data for analysis
-diffphc-cli -d 0 -d 1 -c 100 --csv -o measurement_data.csv
+# Экспорт данных для анализа
+shiwadiffphc-cli -d 0 -d 1 -c 100 --csv -o measurement_data.csv
 
-# Device discovery and info
-diffphc-cli --list
-diffphc-cli --info -d 0
+# Обнаружение устройств и информация
+shiwadiffphc-cli --list
+shiwadiffphc-cli --info -d 0
 ```
 
-### GUI Workflow
-1. **Launch**: `sudo diffphc-gui`
-2. **Select devices**: Check desired PTP devices
-3. **Configure**: Set measurement parameters
-4. **Start**: Click "Start Measurement"
-5. **Monitor**: Watch real-time results in table
-6. **Export**: Save results when complete
+### Рабочий процесс GUI
+1. **Запуск**: `sudo shiwadiffphc-gui`
+2. **Выбор устройств**: Отметьте желаемые PTP устройства
+3. **Настройка**: Установите параметры измерения
+4. **Старт**: Нажмите "Начать измерение"
+5. **Мониторинг**: Наблюдайте результаты в реальном времени в таблице
+6. **Экспорт**: Сохраните результаты по завершении
 
-## Troubleshooting
+## Устранение неполадок
 
-### Common Issues
+### Частые проблемы
 
-**Permission Denied**
-- Solution: Run with sudo privileges
-- Command: `sudo diffphc-cli` or `sudo diffphc-gui`
+**Отказано в доступе**
+- Решение: Запустите с привилегиями sudo
+- Команда: `sudo shiwadiffphc-cli` или `sudo shiwadiffphc-gui`
 
-**No PTP Devices Found**
-- Check: `ls /dev/ptp*`
-- Ensure: PTP support in kernel and hardware
+**PTP устройства не найдены**
+- Проверьте: `ls /dev/ptp*`
+- Убедитесь: Поддержка PTP в ядре и аппаратуре
 
-**Qt5 Not Found (GUI)**
-- Install: `sudo apt-get install qtbase5-dev`
-- Verify: `pkg-config --exists Qt5Core`
+**Qt5 не найдена (GUI)**
+- Установите: `sudo apt-get install qtbase5-dev`
+- Проверьте: `pkg-config --exists Qt5Core`
 
-**Build Errors**
-- Check dependencies: `make check-deps`
-- Install missing: `make install-deps`
+**Ошибки сборки**
+- Проверьте зависимости: `make check-deps`
+- Установите недостающие: `make install-deps`
 
-### Device Verification
+### Проверка устройств
 ```bash
-# Check available devices
-diffphc-cli --list
+# Проверка доступных устройств
+shiwadiffphc-cli --list
 
-# Test device access
-sudo diffphc-cli -d 0 --info
+# Тестирование доступа к устройству
+sudo shiwadiffphc-cli -d 0 --info
 
-# Verify permissions
+# Проверка разрешений
 ls -la /dev/ptp*
 ```
 
-## Development
+## Разработка
 
-### Building from Source
+### Сборка из исходников
 ```bash
 git clone <repository>
-cd DiffPHC
+cd ShiwaDiffPHC
 make check-deps
 make
 ```
 
-### Project Structure
+### Структура проекта
 ```
-DiffPHC/
-├── diffphc_core.h/.cpp     # Core measurement logic
-├── diffphc_cli.cpp         # Enhanced CLI interface
-├── diffphc_gui.h/.cpp      # Qt GUI interface
-├── diffphc.cpp             # Legacy CLI interface
-├── Makefile                # Build system
-└── README.md               # Documentation
+ShiwaDiffPHC/
+├── diffphc_core.h/.cpp     # Основная логика измерений
+├── diffphc_cli.cpp         # Расширенный CLI интерфейс
+├── diffphc_gui.h/.cpp      # Qt GUI интерфейс
+├── diffphc.cpp             # Унаследованный CLI интерфейс
+├── Makefile                # Система сборки
+└── README.md               # Документация
 ```
 
-## License
+## История версий
 
-Contributions to this Specification are made under the terms and conditions set forth in Open Web Foundation Contributor License Agreement ("OWF CLA 1.0") ("Contribution License") by Facebook.
-
-## Version History
-
-- **v1.1.0**: Added CLI and GUI interfaces, modular architecture
-- **v1.0.0**: Original command-line tool
+- **v1.1.0**: Добавлены CLI и GUI интерфейсы, модульная архитектура
+- **v1.0.0**: Оригинальный инструмент командной строки

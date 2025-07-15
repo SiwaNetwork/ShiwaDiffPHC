@@ -23,25 +23,25 @@ LEGACY_OBJECTS = $(LEGACY_SOURCES:.cpp=.o)
 GUI_MOC = diffphc_gui.moc
 
 # Targets
-TARGETS = diffphc diffphc-cli
+TARGETS = shiwadiffphc shiwadiffphc-cli
 ifeq ($(shell pkg-config --exists Qt5Core Qt5Widgets Qt5Gui 2>/dev/null && echo "yes" || echo "no"), yes)
-    TARGETS += diffphc-gui
+    TARGETS += shiwadiffphc-gui
 endif
 
 .PHONY: all clean install format check-deps help install-deps
 
 all: check-deps $(TARGETS)
 
-# Legacy target (original diffphc)
-diffphc: $(LEGACY_OBJECTS)
+# Legacy target (original shiwadiffphc)
+shiwadiffphc: $(LEGACY_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 # CLI target
-diffphc-cli: $(CORE_OBJECTS) $(CLI_OBJECTS)
+shiwadiffphc-cli: $(CORE_OBJECTS) $(CLI_OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 # GUI target (only if Qt is available)
-diffphc-gui: $(CORE_OBJECTS) $(GUI_OBJECTS)
+shiwadiffphc-gui: $(CORE_OBJECTS) $(GUI_OBJECTS)
 	$(CC) $(QT_LDFLAGS) $(LDFLAGS) -o $@ $^
 
 # Core object files
@@ -99,22 +99,22 @@ install-deps:
 	fi
 
 install: all
-	@echo "Installing DiffPHC tools..."
-	sudo cp diffphc /usr/local/bin/
-	sudo cp diffphc-cli /usr/local/bin/
-	@if [ -f diffphc-gui ]; then \
-		sudo cp diffphc-gui /usr/local/bin/; \
-		echo "✓ Installed diffphc-gui to /usr/local/bin/"; \
+	@echo "Installing ShiwaDiffPHC tools..."
+	sudo cp shiwadiffphc /usr/local/bin/
+	sudo cp shiwadiffphc-cli /usr/local/bin/
+	@if [ -f shiwadiffphc-gui ]; then \
+		sudo cp shiwadiffphc-gui /usr/local/bin/; \
+		echo "✓ Installed shiwadiffphc-gui to /usr/local/bin/"; \
 	fi
-	@echo "✓ Installed diffphc to /usr/local/bin/"
-	@echo "✓ Installed diffphc-cli to /usr/local/bin/"
+	@echo "✓ Installed shiwadiffphc to /usr/local/bin/"
+	@echo "✓ Installed shiwadiffphc-cli to /usr/local/bin/"
 
 uninstall:
-	@echo "Removing DiffPHC tools..."
-	sudo rm -f /usr/local/bin/diffphc
-	sudo rm -f /usr/local/bin/diffphc-cli 
-	sudo rm -f /usr/local/bin/diffphc-gui
-	@echo "✓ Uninstalled DiffPHC tools"
+	@echo "Removing ShiwaDiffPHC tools..."
+	sudo rm -f /usr/local/bin/shiwadiffphc
+	sudo rm -f /usr/local/bin/shiwadiffphc-cli 
+	sudo rm -f /usr/local/bin/shiwadiffphc-gui
+	@echo "✓ Uninstalled ShiwaDiffPHC tools"
 
 clean:
 	-rm -f *.o *.log $(TARGETS) $(GUI_MOC)
@@ -123,37 +123,37 @@ clean:
 format:
 	clang-format -i *.cpp *.h
 
-test: diffphc-cli
+test: shiwadiffphc-cli
 	@echo "Running basic tests..."
 	@echo "Testing CLI help..."
-	./diffphc-cli --help > /dev/null && echo "✓ CLI help works" || echo "✗ CLI help failed"
+	./shiwadiffphc-cli --help > /dev/null && echo "✓ CLI help works" || echo "✗ CLI help failed"
 	@echo "Testing device list..."
-	./diffphc-cli --list > /dev/null && echo "✓ Device listing works" || echo "✓ Device listing works (no devices found)"
+	./shiwadiffphc-cli --list > /dev/null && echo "✓ Device listing works" || echo "✓ Device listing works (no devices found)"
 	@echo "Tests completed"
 
 help:
-	@echo "DiffPHC Build System"
-	@echo "==================="
+	@echo "ShiwaDiffPHC Build System"
+	@echo "========================="
 	@echo ""
 	@echo "Targets:"
-	@echo "  all          - Build all available targets"
-	@echo "  diffphc      - Build legacy CLI tool"
-	@echo "  diffphc-cli  - Build enhanced CLI tool"
-	@echo "  diffphc-gui  - Build GUI tool (requires Qt5)"
-	@echo "  install      - Install tools to /usr/local/bin/"
-	@echo "  uninstall    - Remove installed tools"
-	@echo "  clean        - Remove build files"
-	@echo "  format       - Format source code"
-	@echo "  test         - Run basic tests"
-	@echo "  check-deps   - Check for required dependencies"
-	@echo "  install-deps - Install required dependencies"
-	@echo "  help         - Show this help"
+	@echo "  all               - Build all available targets"
+	@echo "  shiwadiffphc      - Build legacy CLI tool"
+	@echo "  shiwadiffphc-cli  - Build enhanced CLI tool"
+	@echo "  shiwadiffphc-gui  - Build GUI tool (requires Qt5)"
+	@echo "  install           - Install tools to /usr/local/bin/"
+	@echo "  uninstall         - Remove installed tools"
+	@echo "  clean             - Remove build files"
+	@echo "  format            - Format source code"
+	@echo "  test              - Run basic tests"
+	@echo "  check-deps        - Check for required dependencies"
+	@echo "  install-deps      - Install required dependencies"
+	@echo "  help              - Show this help"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make              # Build all"
-	@echo "  make diffphc-cli  # Build CLI only"
-	@echo "  make install      # Install all tools"
-	@echo "  make install-deps # Install dependencies"
+	@echo "  make                   # Build all"
+	@echo "  make shiwadiffphc-cli  # Build CLI only"
+	@echo "  make install           # Install all tools"
+	@echo "  make install-deps      # Install dependencies"
 
 # Special handling for Qt MOC
 .INTERMEDIATE: $(GUI_MOC)
