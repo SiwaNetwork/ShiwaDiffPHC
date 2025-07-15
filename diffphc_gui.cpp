@@ -182,13 +182,24 @@ void ShiwaDiffPHCMainWindow::setupResultsPanel() {
     m_resultsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     resultsLayout->addWidget(m_resultsTable);
     
-    m_tabWidget->addTab(resultsWidget, "Results Table");
+    m_tabWidget->addTab(resultsWidget, "Таблица результатов");
+    
+    // Statistics Table Tab
+    auto* statisticsWidget = new QWidget;
+    auto* statisticsLayout = new QVBoxLayout(statisticsWidget);
+    
+    m_statisticsTable = new QTableWidget;
+    m_statisticsTable->setAlternatingRowColors(true);
+    m_statisticsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    statisticsLayout->addWidget(m_statisticsTable);
+    
+    m_tabWidget->addTab(statisticsWidget, "Статистический анализ");
     
     // Plot Tab (placeholder)
     m_plotWidget = new QTextEdit;
-    m_plotWidget->setPlainText("Plot visualization will be available here\n(Feature to be implemented)");
+    m_plotWidget->setPlainText("Здесь будет доступна визуализация графиков\n(Функция будет реализована)");
     m_plotWidget->setReadOnly(true);
-    m_tabWidget->addTab(m_plotWidget, "Plot");
+    m_tabWidget->addTab(m_plotWidget, "Графики");
     
     // Log Tab
     m_logTextEdit = new QPlainTextEdit;
@@ -293,6 +304,7 @@ void ShiwaDiffPHCMainWindow::onTimerUpdate() {
     if (result.success) {
         m_results.push_back(result);
         updateResultsTable(result);
+        updateStatisticsTable(result);
         m_currentIteration++;
         
         if (m_currentConfig.count > 0) {
@@ -346,6 +358,65 @@ void ShiwaDiffPHCMainWindow::updateResultsTable(const PHCResult& result) {
     
     // Scroll to bottom
     m_resultsTable->scrollToBottom();
+}
+
+void ShiwaDiffPHCMainWindow::updateStatisticsTable(const PHCResult& result) {
+    if (!result.success || result.statistics.empty() || result.differences.size() < 2) {
+        return;
+    }
+    
+    const auto& devices = result.devices;
+    const int numDev = devices.size();
+    
+    // Setup table headers if needed
+    if (m_statisticsTable->columnCount() == 0) {
+        QStringList headers;
+        headers << "Пара устройств" << "Медиана (нс)" << "Среднее (нс)" 
+                << "Минимум (нс)" << "Максимум (нс)" << "Размах (нс)" 
+                << "Станд. откл. (нс)" << "Измерений";
+        
+        m_statisticsTable->setColumnCount(headers.size());
+        m_statisticsTable->setHorizontalHeaderLabels(headers);
+        m_statisticsTable->horizontalHeader()->setStretchLastSection(true);
+        
+        // Calculate number of device pairs (excluding diagonal)
+        int pairCount = 0;
+        for (int i = 0; i < numDev; ++i) {
+            for (int j = 0; j <= i; ++j) {
+                if (i != j) pairCount++;
+            }
+        }
+        m_statisticsTable->setRowCount(pairCount);
+    }
+    
+    // Fill data
+    int row = 0;
+    for (int i = 0; i < numDev; ++i) {
+        for (int j = 0; j <= i; ++j) {
+            if (i == j) continue; // Skip diagonal
+            
+            const auto& stats = result.statistics[i][j];
+            
+            m_statisticsTable->setItem(row, 0, new QTableWidgetItem(
+                QString("ptp%1 - ptp%2").arg(devices[i]).arg(devices[j])));
+            m_statisticsTable->setItem(row, 1, new QTableWidgetItem(
+                QString::number(stats.median, 'f', 1)));
+            m_statisticsTable->setItem(row, 2, new QTableWidgetItem(
+                QString::number(stats.mean, 'f', 1)));
+            m_statisticsTable->setItem(row, 3, new QTableWidgetItem(
+                QString::number(stats.minimum)));
+            m_statisticsTable->setItem(row, 4, new QTableWidgetItem(
+                QString::number(stats.maximum)));
+            m_statisticsTable->setItem(row, 5, new QTableWidgetItem(
+                QString::number(stats.range)));
+            m_statisticsTable->setItem(row, 6, new QTableWidgetItem(
+                QString::number(stats.stddev, 'f', 1)));
+            m_statisticsTable->setItem(row, 7, new QTableWidgetItem(
+                QString::number(stats.count)));
+            
+            row++;
+        }
+    }
 }
 
 void ShiwaDiffPHCMainWindow::onDeviceSelectionChanged() {
@@ -415,8 +486,10 @@ void ShiwaDiffPHCMainWindow::clearResults() {
     m_results.clear();
     m_resultsTable->setRowCount(0);
     m_resultsTable->setColumnCount(0);
+    m_statisticsTable->setRowCount(0);
+    m_statisticsTable->setColumnCount(0);
     m_currentIteration = 0;
-    logMessage("Results cleared");
+    logMessage("Результаты очищены");
 }
 
 void ShiwaDiffPHCMainWindow::logMessage(const QString& message) {
@@ -468,10 +541,13 @@ void ShiwaDiffPHCMainWindow::onRefreshDevices() {
 
 void ShiwaDiffPHCMainWindow::onAbout() {
     QMessageBox::about(this, "О программе ShiwaDiffPHC",
-                      "ShiwaDiffPHC v1.1.0\n\n"
+                      "ShiwaDiffPHC v1.2.0\n\n"
                       "Анализатор различий протокола точного времени (PTP)\n\n"
                       "Этот инструмент измеряет временные различия между PTP устройствами\n"
                       "для анализа точности синхронизации часов.\n\n"
+                      "НОВИНКА v1.2.0: Расширенный статистический анализ!\n"
+                      "• Медиана, стандартное отклонение, размах\n"
+                      "• Автоматические расчеты в реальном времени\n\n"
                       "Требует привилегии root для доступа к PTP устройствам.");
 }
 
@@ -480,7 +556,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName("ShiwaDiffPHC");
-    app.setApplicationVersion("1.1.0");
+    app.setApplicationVersion("1.2.0");
     app.setOrganizationName("Shiwa Tools");
     
     ShiwaDiffPHCMainWindow window;

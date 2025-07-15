@@ -1,4 +1,5 @@
 #include "diffphc_core.h"
+#include <cmath>
 
 std::string DiffPHCCore::getPHCFileName(int phc_index) {
     std::stringstream s;
@@ -165,6 +166,12 @@ PHCResult DiffPHCCore::measurePHCDifferences(const PHCConfig& config) {
     }
     
     result.success = true;
+    
+    // Рассчитать статистику, если есть измерения
+    if (!result.differences.empty()) {
+        calculateResultStatistics(result);
+    }
+    
     return result;
 }
 
@@ -224,4 +231,105 @@ int64_t DiffPHCCore::getPTPSysOffsetExtended(int clkPTPid, int samples) {
     phcTime += (phcTotal + count / 2) / count;
 
     return getCPUNow() + phcTime - sysTime;
+}
+
+// Statistical analysis functions
+double DiffPHCCore::calculateMedian(std::vector<int64_t> values) {
+    if (values.empty()) return 0.0;
+    
+    std::sort(values.begin(), values.end());
+    size_t n = values.size();
+    
+    if (n % 2 == 0) {
+        return (values[n/2 - 1] + values[n/2]) / 2.0;
+    } else {
+        return values[n/2];
+    }
+}
+
+double DiffPHCCore::calculateMean(const std::vector<int64_t>& values) {
+    if (values.empty()) return 0.0;
+    
+    int64_t sum = 0;
+    for (auto value : values) {
+        sum += value;
+    }
+    return static_cast<double>(sum) / values.size();
+}
+
+double DiffPHCCore::calculateStdDev(const std::vector<int64_t>& values, double mean) {
+    if (values.size() <= 1) return 0.0;
+    
+    double variance = 0.0;
+    for (auto value : values) {
+        double diff = value - mean;
+        variance += diff * diff;
+    }
+    variance /= (values.size() - 1);
+    return std::sqrt(variance);
+}
+
+PHCStatistics DiffPHCCore::calculateStatistics(const std::vector<int64_t>& values) {
+    PHCStatistics stats = {};
+    
+    if (values.empty()) {
+        stats.count = 0;
+        return stats;
+    }
+    
+    stats.count = values.size();
+    
+    // Найти минимум и максимум
+    auto minmax = std::minmax_element(values.begin(), values.end());
+    stats.minimum = *minmax.first;
+    stats.maximum = *minmax.second;
+    stats.range = stats.maximum - stats.minimum;
+    
+    // Рассчитать среднее
+    stats.mean = calculateMean(values);
+    
+    // Рассчитать медиану
+    stats.median = calculateMedian(values);
+    
+    // Рассчитать стандартное отклонение
+    stats.stddev = calculateStdDev(values, stats.mean);
+    
+    return stats;
+}
+
+void DiffPHCCore::calculateResultStatistics(PHCResult& result) {
+    if (!result.success || result.differences.empty()) {
+        return;
+    }
+    
+    const int numDev = result.devices.size();
+    
+    // Инициализировать массив статистики
+    result.statistics.resize(numDev);
+    for (int i = 0; i < numDev; ++i) {
+        result.statistics[i].resize(i + 1);
+    }
+    
+    // Собрать данные для каждой пары устройств
+    std::vector<std::vector<std::vector<int64_t>>> pairData(numDev);
+    for (int i = 0; i < numDev; ++i) {
+        pairData[i].resize(i + 1);
+    }
+    
+    // Заполнить данные из всех измерений
+    for (const auto& measurement : result.differences) {
+        int idx = 0;
+        for (int i = 0; i < numDev; ++i) {
+            for (int j = 0; j <= i; ++j) {
+                pairData[i][j].push_back(measurement[idx++]);
+            }
+        }
+    }
+    
+    // Рассчитать статистику для каждой пары
+    for (int i = 0; i < numDev; ++i) {
+        for (int j = 0; j <= i; ++j) {
+            result.statistics[i][j] = calculateStatistics(pairData[i][j]);
+        }
+    }
 }

@@ -56,6 +56,7 @@ private:
     void setupStatusBar();
     void updateDeviceList();
     void updateResultsTable(const PHCResult& result);
+    void updateStatisticsTable(const PHCResult& result);
     void updatePlot(const PHCResult& result);
     void logMessage(const QString& message);
     void clearResults();
@@ -89,6 +90,7 @@ private:
     
     // Results Panel
     QTableWidget* m_resultsTable;
+    QTableWidget* m_statisticsTable;
     QTextEdit* m_plotWidget; // Placeholder for future plot widget
     QPlainTextEdit* m_logTextEdit;
     
