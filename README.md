@@ -1,21 +1,354 @@
-## DiffPHC
+# ShiwaDiffPHC
 
-DiffPHC is a tool that allows you to measure the difference between two or multiple PHCs of the system.
+ShiwaDiffPHC — это комплексный инструмент для измерения временных различий между устройствами Precision Time Protocol (PTP) в вашей системе. Теперь он включает как расширенный интерфейс командной строки, так и графический пользовательский интерфейс для максимального удобства использования.
 
-# License
-Contributions to this Specification are made under the terms and conditions set forth in Open Web Foundation Contributor License Agreement (“OWF CLA 1.0”) (“Contribution License”) by: 
- 
- Facebook
+## Возможности
 
-You can review the signed copies of the applicable Contributor License(s) for this Specification on the OCP website at http://www.opencompute.org/products/specsanddesign 
-Usage of this Specification is governed by the terms and conditions set forth in Open Web Foundation Final Specification Agreement (“OWFa 1.0”) (“Specification License”).   
- 
-You can review the applicable Specification License(s) executed by the above referenced contributors to this Specification on the OCP website at http://www.opencompute.org/participate/legal-documents/
- Notes: 
- 
-1)     The following clarifications, which distinguish technology licensed in the Contribution License and/or Specification License from those technologies merely referenced (but not licensed), were accepted by the Incubation Committee of the OCP:  
- 
-None
+### Основной функционал
+- Измерение временных различий между множественными PTP устройствами
+- Высокоточный анализ временных меток с использованием PTP_SYS_OFFSET_EXTENDED
+- Возможности мониторинга в реальном времени
+- **Расширенный статистический анализ:**
+  - **Медиана** - серединное значение сдвига
+  - **Максимум/Минимум** - наибольшее/наименьшее отклонение
+  - **Стандартное отклонение** - степень разброса значений вокруг среднего
+  - **Размах** - разница между максимумом и минимумом
+  - **Среднее значение** и **количество измерений**
 
- 
-NOTWITHSTANDING THE FOREGOING LICENSES, THIS SPECIFICATION IS PROVIDED BY OCP "AS IS" AND OCP EXPRESSLY DISCLAIMS ANY WARRANTIES (EXPRESS, IMPLIED, OR OTHERWISE), INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY, NON-INFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, OR TITLE, RELATED TO THE SPECIFICATION. NOTICE IS HEREBY GIVEN, THAT OTHER RIGHTS NOT GRANTED AS SET FORTH ABOVE, INCLUDING WITHOUT LIMITATION, RIGHTS OF THIRD PARTIES WHO DID NOT EXECUTE THE ABOVE LICENSES, MAY BE IMPLICATED BY THE IMPLEMENTATION OF OR COMPLIANCE WITH THIS SPECIFICATION. OCP IS NOT RESPONSIBLE FOR IDENTIFYING RIGHTS FOR WHICH A LICENSE MAY BE REQUIRED IN ORDER TO IMPLEMENT THIS SPECIFICATION.  THE ENTIRE RISK AS TO IMPLEMENTING OR OTHERWISE USING THE SPECIFICATION IS ASSUMED BY YOU. IN NO EVENT WILL OCP BE LIABLE TO YOU FOR ANY MONETARY DAMAGES WITH RESPECT TO ANY CLAIMS RELATED TO, OR ARISING OUT OF YOUR USE OF THIS SPECIFICATION, INCLUDING BUT NOT LIMITED TO ANY LIABILITY FOR LOST PROFITS OR ANY CONSEQUENTIAL, INCIDENTAL, INDIRECT, SPECIAL OR PUNITIVE DAMAGES OF ANY CHARACTER FROM ANY CAUSES OF ACTION OF ANY KIND WITH RESPECT TO THIS SPECIFICATION, WHETHER BASED ON BREACH OF CONTRACT, TORT (INCLUDING NEGLIGENCE), OR OTHERWISE, AND EVEN IF OCP HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+### Пользовательские интерфейсы
+
+#### 1. Расширенный CLI интерфейс (`shiwadiffphc-cli`)
+- **Богатые опции командной строки** с короткими и длинными формами
+- **Множественные форматы вывода**: таблица, JSON, CSV
+- **Автоопределение устройств** когда устройства не указаны
+- **Подробное логирование** и поддержка отладки
+- **Возможности вывода в файл**
+- **Отображение информации об устройствах**
+- **Автоматический статистический анализ** с настраиваемыми опциями:
+  - `--stats` - показать статистику (по умолчанию)
+  - `--no-stats` - отключить статистику
+  - `--stats-only` - только статистика без сырых данных
+
+#### 2. Современный GUI интерфейс (`shiwadiffphc-gui`)
+- **Интуитивный графический интерфейс** построенный на Qt5
+- **Отображение измерений в реальном времени** с живыми таблицами
+- **Управление устройствами** с автоматическим обнаружением и обновлением
+- **Отслеживание прогресса** с визуальными индикаторами
+- **Экспорт результатов** в множественных форматах
+- **Функции сохранения/загрузки конфигурации**
+- **Встроенное логирование** и мониторинг состояния
+- **Вкладка статистического анализа** с автоматическим расчетом в реальном времени
+
+#### 3. Унаследованный CLI интерфейс (`shiwadiffphc`)
+- Оригинальный интерфейс командной строки для обратной совместимости
+
+## Установка
+
+### Зависимости
+
+#### Для CLI инструментов:
+```bash
+sudo apt-get install build-essential
+```
+
+#### Для GUI инструмента (дополнительно):
+```bash
+sudo apt-get install qtbase5-dev qt5-qmake
+```
+
+### Быстрая установка
+```bash
+# Автоматическая установка зависимостей
+make install-deps
+
+# Сборка всех инструментов
+make
+
+# Установка в систему
+sudo make install
+```
+
+### Ручная сборка
+```bash
+# Проверка зависимостей
+make check-deps
+
+# Сборка конкретных целей
+make shiwadiffphc-cli    # Только CLI
+make shiwadiffphc-gui    # GUI (требует Qt5)
+make shiwadiffphc        # Унаследованная версия
+```
+
+## Использование
+
+### Расширенный CLI интерфейс
+
+#### Базовое использование
+```bash
+# Автообнаружение и сравнение первых двух устройств
+shiwadiffphc-cli
+
+# Сравнение конкретных устройств
+shiwadiffphc-cli -d 0 -d 1
+
+# Запуск 100 итераций с пользовательской задержкой
+shiwadiffphc-cli -c 100 -l 250000 -d 0 -d 1
+```
+
+#### Информационные команды
+```bash
+# Список всех доступных PTP устройств
+shiwadiffphc-cli --list
+
+# Показать возможности устройств
+shiwadiffphc-cli --info
+
+# Показать информацию об устройствах для конкретных устройств
+shiwadiffphc-cli -i -d 0 -d 1
+```
+
+#### Опции вывода
+```bash
+# Вывод в JSON
+shiwadiffphc-cli -d 0 -d 1 --json
+
+# Вывод в CSV с сохранением в файл
+shiwadiffphc-cli -d 0 -d 1 --csv -o results.csv
+
+# Подробный вывод
+shiwadiffphc-cli -d 0 -d 1 --verbose
+```
+
+#### Расширенные опции
+```bash
+# Непрерывное измерение
+shiwadiffphc-cli -d 0 -d 1 --continuous
+
+# Пользовательская выборка
+shiwadiffphc-cli -d 0 -d 1 -s 25 -l 50000
+
+# Справка и версия
+shiwadiffphc-cli --help
+shiwadiffphc-cli --version
+```
+
+### GUI интерфейс
+
+Запуск GUI приложения:
+```bash
+shiwadiffphc-gui
+```
+
+#### Возможности GUI:
+1. **Выбор устройства**: Флажки для доступных PTP устройств
+2. **Панель конфигурации**: Установка итераций, задержки и выборок
+3. **Управление в реальном времени**: Старт/стоп измерений с отслеживанием прогресса
+4. **Отображение результатов**: Обновления таблицы в реальном времени с информацией о временных метках
+5. **Опции экспорта**: Сохранение результатов в форматах CSV или JSON
+6. **Управление устройствами**: Обновление списка устройств и просмотр информации об устройствах
+7. **Логирование**: Встроенная панель журнала для мониторинга операций
+
+#### Требования GUI:
+- Привилегии root (sudo) для доступа к PTP устройствам
+- Установленные библиотеки Qt5
+- Сервер отображения X11 или Wayland
+
+### Унаследованный интерфейс
+
+```bash
+# Оригинальное использование (обратная совместимость)
+shiwadiffphc -c 100 -l 250000 -d 2 -d 0
+shiwadiffphc -d 0 -d 1 -d 0
+shiwadiffphc -i  # Показать информацию об устройстве
+```
+
+## Опции командной строки
+
+### Расширенный CLI (`shiwadiffphc-cli`)
+
+| Опция | Длинная форма | Описание |
+|-------|---------------|----------|
+| `-c NUM` | `--count NUM` | Количество итераций (0 = бесконечно) |
+| `-l NUM` | `--delay NUM` | Задержка между итерациями (мкс) |
+| `-s NUM` | `--samples NUM` | Количество чтений PHC на измерение |
+| `-d NUM` | `--device NUM` | Добавить PTP устройство (повторяемо) |
+| `-i` | `--info` | Показать информацию о PTP устройстве |
+| `-L` | `--list` | Список доступных PTP устройств |
+| `-v` | `--verbose` | Включить подробный вывод |
+| `-q` | `--quiet` | Подавить вывод прогресса |
+| `-j` | `--json` | Вывод в формате JSON |
+| `-o FILE` | `--output FILE` | Записать вывод в файл |
+| | `--continuous` | Запуск непрерывно (то же что -c 0) |
+| | `--csv` | Вывод в формате CSV |
+| | `--stats` | Показать статистический анализ (по умолчанию) |
+| | `--no-stats` | Отключить показ статистики |
+| | `--stats-only` | Показать только статистику без сырых данных |
+| | `--version` | Показать информацию о версии |
+| `-h` | `--help` | Отобразить справочное сообщение |
+
+## Форматы вывода
+
+### Табличный формат (по умолчанию)
+```
+          ptp0    ptp1
+ptp0      0       -1234
+ptp1      1234    0
+
+=== СТАТИСТИЧЕСКИЙ АНАЛИЗ ===
+Количество измерений: 50
+
+Пара устройств ptp1 - ptp0:
+  Медиана:           999.0 нс
+  Среднее:           1005.0 нс
+  Минимум:           797 нс
+  Максимум:          1265 нс
+  Размах:            468 нс
+  Станд. отклонение: 93.8 нс
+  Измерений:         50
+```
+
+### Формат JSON
+```json
+{
+  "success": true,
+  "devices": [0, 1],
+  "measurements": [
+    [0, -1234, 1234, 0]
+  ],
+  "statistics": {
+    "ptp1-ptp0": {
+      "median": 999.0,
+      "mean": 1005.0,
+      "minimum": 797,
+      "maximum": 1265,
+      "range": 468,
+      "stddev": 93.8,
+      "count": 50
+    }
+  },
+  "timestamp": 1640995200000000000
+}
+```
+
+### Формат CSV
+```csv
+iteration,timestamp,ptp0-ptp0,ptp0-ptp1,ptp1-ptp0,ptp1-ptp1
+0,1640995200000000000,0,-1234,1234,0
+
+# Статистический анализ
+pair,median,mean,minimum,maximum,range,stddev,count
+ptp1-ptp0,999.0,1005.0,797,1265,468,93.8,50
+```
+
+### Формат CSV (только статистика с --stats-only)
+```csv
+pair,median,mean,minimum,maximum,range,stddev,count
+ptp1-ptp0,999.0,1005.0,797,1265,468,93.8,50
+```
+
+## Системные требования
+
+- **Ядро Linux** с поддержкой PTP
+- **Привилегии root** для доступа к устройствам `/dev/ptp*`
+- **PTP устройства** доступные в системе
+- **Компилятор совместимый с C++17**
+- **Библиотеки разработки Qt5** (для GUI)
+
+## Примеры
+
+### Примеры CLI
+```bash
+# Быстрое сравнение устройств
+shiwadiffphc-cli -d 0 -d 1
+
+# Высокочастотный мониторинг
+shiwadiffphc-cli -d 0 -d 1 -c 1000 -l 10000
+
+# Экспорт данных для анализа
+shiwadiffphc-cli -d 0 -d 1 -c 100 --csv -o measurement_data.csv
+
+# Статистический анализ
+shiwadiffphc-cli -d 0 -d 1 -c 50 --stats-only     # Только статистика
+shiwadiffphc-cli -d 0 -d 1 -c 30 --no-stats       # Без статистики
+shiwadiffphc-cli -d 0 -d 1 -c 100 --stats-only --csv -o stats.csv
+
+# Обнаружение устройств и информация
+shiwadiffphc-cli --list
+shiwadiffphc-cli --info -d 0
+```
+
+### Рабочий процесс GUI
+1. **Запуск**: `sudo shiwadiffphc-gui`
+2. **Выбор устройств**: Отметьте желаемые PTP устройства
+3. **Настройка**: Установите параметры измерения
+4. **Старт**: Нажмите "Начать измерение"
+5. **Мониторинг**: Наблюдайте результаты в реальном времени:
+   - Вкладка "Таблица результатов" - сырые данные измерений
+   - Вкладка "Статистический анализ" - автоматические расчеты
+   - Вкладка "Логи" - сообщения о ходе работы
+6. **Анализ**: Изучите статистику (медиана, среднее, размах, откл.)
+7. **Экспорт**: Сохраните результаты и статистику по завершении
+
+## Устранение неполадок
+
+### Частые проблемы
+
+**Отказано в доступе**
+- Решение: Запустите с привилегиями sudo
+- Команда: `sudo shiwadiffphc-cli` или `sudo shiwadiffphc-gui`
+
+**PTP устройства не найдены**
+- Проверьте: `ls /dev/ptp*`
+- Убедитесь: Поддержка PTP в ядре и аппаратуре
+
+**Qt5 не найдена (GUI)**
+- Установите: `sudo apt-get install qtbase5-dev`
+- Проверьте: `pkg-config --exists Qt5Core`
+
+**Ошибки сборки**
+- Проверьте зависимости: `make check-deps`
+- Установите недостающие: `make install-deps`
+
+### Проверка устройств
+```bash
+# Проверка доступных устройств
+shiwadiffphc-cli --list
+
+# Тестирование доступа к устройству
+sudo shiwadiffphc-cli -d 0 --info
+
+# Проверка разрешений
+ls -la /dev/ptp*
+```
+
+## Разработка
+
+### Сборка из исходников
+```bash
+git clone <repository>
+cd ShiwaDiffPHC
+make check-deps
+make
+```
+
+### Структура проекта
+```
+ShiwaDiffPHC/
+├── diffphc_core.h/.cpp     # Основная логика измерений
+├── diffphc_cli.cpp         # Расширенный CLI интерфейс
+├── diffphc_gui.h/.cpp      # Qt GUI интерфейс
+├── diffphc.cpp             # Унаследованный CLI интерфейс
+├── Makefile                # Система сборки
+└── README.md               # Документация
+```
+
+## История версий
+
+- **v1.2.0**: Добавлен расширенный статистический анализ:
+  - Медиана, стандартное отклонение, размах
+  - Автоматический расчет статистики в CLI и GUI
+  - Новые опции: `--stats`, `--no-stats`, `--stats-only`
+  - Поддержка статистики во всех форматах вывода (JSON, CSV)
+  - Отдельная вкладка статистики в GUI
+- **v1.1.0**: Добавлены CLI и GUI интерфейсы, модульная архитектура
+- **v1.0.0**: Оригинальный инструмент командной строки
