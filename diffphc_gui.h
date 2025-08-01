@@ -24,9 +24,21 @@
 #include <QHeaderView>
 #include <QTabWidget>
 #include <QPlainTextEdit>
+#include <QChart>
+#include <QChartView>
+#include <QLineSeries>
+#include <QBarSeries>
+#include <QBarSet>
+#include <QBarCategoryAxis>
+#include <QValueAxis>
+#include <QDateTimeAxis>
+#include <QScatterSeries>
+#include <QAreaSeries>
 #include <vector>
 
 #include "diffphc_core.h"
+
+QT_CHARTS_USE_NAMESPACE
 
 class ShiwaDiffPHCMainWindow : public QMainWindow {
     Q_OBJECT
@@ -91,7 +103,7 @@ private:
     // Results Panel
     QTableWidget* m_resultsTable;
     QTableWidget* m_statisticsTable;
-    QTextEdit* m_plotWidget; // Placeholder for future plot widget
+    QChartView* m_plotWidget; // Real chart widget
     QPlainTextEdit* m_logTextEdit;
     
     // Status Bar

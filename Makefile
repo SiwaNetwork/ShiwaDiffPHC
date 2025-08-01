@@ -3,8 +3,8 @@ CFLAGS = -O2 -Wall -std=c++17 -pthread
 LDFLAGS = -lpthread 
 
 # Qt settings
-QT_CFLAGS = $(shell pkg-config --cflags Qt5Core Qt5Widgets Qt5Gui 2>/dev/null || echo "-I/usr/include/qt5 -I/usr/include/qt5/QtCore -I/usr/include/qt5/QtWidgets -I/usr/include/qt5/QtGui")
-QT_LDFLAGS = $(shell pkg-config --libs Qt5Core Qt5Widgets Qt5Gui 2>/dev/null || echo "-lQt5Core -lQt5Widgets -lQt5Gui")
+QT_CFLAGS = $(shell pkg-config --cflags Qt5Core Qt5Widgets Qt5Gui Qt5Charts 2>/dev/null || echo "-I/usr/include/qt5 -I/usr/include/qt5/QtCore -I/usr/include/qt5/QtWidgets -I/usr/include/qt5/QtGui -I/usr/include/qt5/QtCharts") -fPIC
+QT_LDFLAGS = $(shell pkg-config --libs Qt5Core Qt5Widgets Qt5Gui Qt5Charts 2>/dev/null || echo "-lQt5Core -lQt5Widgets -lQt5Gui -lQt5Charts")
 MOC = $(shell which moc-qt5 2>/dev/null || which moc 2>/dev/null || echo "moc")
 
 # Source files
@@ -42,7 +42,7 @@ shiwadiffphc-cli: $(CORE_OBJECTS) $(CLI_OBJECTS)
 
 # GUI target (only if Qt is available)
 shiwadiffphc-gui: $(CORE_OBJECTS) $(GUI_OBJECTS)
-	$(CC) $(QT_LDFLAGS) $(LDFLAGS) -o $@ $^
+	$(CC) $(CORE_OBJECTS) $(GUI_OBJECTS) $(QT_LDFLAGS) $(LDFLAGS) -o $@
 
 # Core object files
 diffphc_core.o: diffphc_core.cpp diffphc_core.h

@@ -7,7 +7,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
-ShiwaShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
+ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     : QMainWindow(parent)
     , m_centralWidget(nullptr)
     , m_measurementTimer(new QTimer(this))
@@ -33,15 +33,20 @@ ShiwaShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     m_currentConfig.debug = false;
     
     logMessage("ShiwaDiffPHC GUI инициализирован");
+    
+    // Показываем тестовый график при запуске
+    PHCResult testResult;
+    testResult.success = false; // Это заставит показать тестовые данные
+    updatePlot(testResult);
 }
 
-ShiwaShiwaDiffPHCMainWindow::~ShiwaDiffPHCMainWindow() {
+ShiwaDiffPHCMainWindow::~ShiwaDiffPHCMainWindow() {
     if (m_measuring) {
         onStopMeasurement();
     }
 }
 
-void ShiwaShiwaDiffPHCMainWindow::setupUI() {
+void ShiwaDiffPHCMainWindow::setupUI() {
     m_centralWidget = new QWidget;
     setCentralWidget(m_centralWidget);
     
@@ -54,7 +59,7 @@ void ShiwaShiwaDiffPHCMainWindow::setupUI() {
     setupResultsPanel();
 }
 
-void ShiwaShiwaDiffPHCMainWindow::setupMenuBar() {
+void ShiwaDiffPHCMainWindow::setupMenuBar() {
     auto* fileMenu = menuBar()->addMenu("&File");
     
     auto* loadConfigAction = fileMenu->addAction("&Load Configuration...");
@@ -75,7 +80,7 @@ void ShiwaShiwaDiffPHCMainWindow::setupMenuBar() {
     
     auto* helpMenu = menuBar()->addMenu("&Help");
     auto* aboutAction = helpMenu->addAction("&О программе ShiwaDiffPHC");
-    connect(aboutAction, &QAction::triggered, this, &ShiwaShiwaDiffPHCMainWindow::onAbout);
+    connect(aboutAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onAbout);
 }
 
 void ShiwaDiffPHCMainWindow::setupControlPanel() {
@@ -195,10 +200,22 @@ void ShiwaDiffPHCMainWindow::setupResultsPanel() {
     
     m_tabWidget->addTab(statisticsWidget, "Статистический анализ");
     
-    // Plot Tab (placeholder)
-    m_plotWidget = new QTextEdit;
-    m_plotWidget->setPlainText("Здесь будет доступна визуализация графиков\n(Функция будет реализована)");
-    m_plotWidget->setReadOnly(true);
+    // Plot Tab (real charts)
+    m_plotWidget = new QChartView;
+    m_plotWidget->setRenderHint(QPainter::Antialiasing);
+    
+    // Создаем пустой график для начала
+    QChart* initialChart = new QChart();
+    initialChart->setTitle("Визуализация различий PTP устройств");
+    initialChart->setAnimationOptions(QChart::SeriesAnimations);
+    
+    // Добавляем текст на график
+    QLineSeries* placeholderSeries = new QLineSeries();
+    placeholderSeries->setName("Ожидание данных...");
+    placeholderSeries->append(0, 0);
+    initialChart->addSeries(placeholderSeries);
+    
+    m_plotWidget->setChart(initialChart);
     m_tabWidget->addTab(m_plotWidget, "Графики");
     
     // Log Tab
@@ -305,6 +322,8 @@ void ShiwaDiffPHCMainWindow::onTimerUpdate() {
         m_results.push_back(result);
         updateResultsTable(result);
         updateStatisticsTable(result);
+        logMessage(QString("Calling updatePlot for iteration %1").arg(m_currentIteration));
+        updatePlot(result);
         m_currentIteration++;
         
         if (m_currentConfig.count > 0) {
@@ -537,6 +556,100 @@ void ShiwaDiffPHCMainWindow::onShowDeviceInfo() {
 
 void ShiwaDiffPHCMainWindow::onRefreshDevices() {
     updateDeviceList();
+}
+
+void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
+    // Добавляем отладочную информацию
+    logMessage(QString("updatePlot called - success: %1, differences size: %2").arg(result.success).arg(result.differences.size()));
+    
+    // Создаем тестовый график даже если данных нет
+    QChart* chart = new QChart();
+    chart->setTitle("Визуализация различий PTP устройств");
+    chart->setAnimationOptions(QChart::SeriesAnimations);
+
+    // Создаем временную ось
+    QDateTimeAxis* timeAxis = new QDateTimeAxis;
+    timeAxis->setTitleText("Время");
+    timeAxis->setFormat("hh:mm:ss");
+    chart->addAxis(timeAxis, Qt::AlignBottom);
+
+    // Создаем ось значений
+    QValueAxis* valueAxis = new QValueAxis;
+    valueAxis->setTitleText("Различие (нс)");
+    chart->addAxis(valueAxis, Qt::AlignLeft);
+
+    if (result.success && !result.differences.empty()) {
+        logMessage(QString("updatePlot: Creating chart with %1 devices").arg(result.devices.size()));
+
+        // Создаем серии для каждой пары устройств
+        const auto& devices = result.devices;
+        QDateTime baseTime = QDateTime::fromMSecsSinceEpoch(result.baseTimestamp / 1000000);
+        
+        logMessage(QString("updatePlot: Base time: %1").arg(baseTime.toString("hh:mm:ss")));
+        
+        int seriesCount = 0;
+        for (size_t i = 0; i < devices.size(); ++i) {
+            for (size_t j = i + 1; j < devices.size(); ++j) {
+                QLineSeries* series = new QLineSeries();
+                QString seriesName = QString("ptp%1 - ptp%2").arg(devices[i]).arg(devices[j]);
+                series->setName(seriesName);
+                
+                logMessage(QString("updatePlot: Creating series %1").arg(seriesName));
+                
+                // Добавляем точки для каждого измерения
+                int pointCount = 0;
+                for (size_t k = 0; k < result.differences.size(); ++k) {
+                    const auto& measurement = result.differences[k];
+                    size_t idx = i * devices.size() + j;
+                    if (idx < measurement.size()) {
+                        QDateTime pointTime = baseTime.addMSecs(k * 100); // Примерное время
+                        qint64 value = measurement[idx];
+                        series->append(pointTime.toMSecsSinceEpoch(), value);
+                        pointCount++;
+                        
+                        if (k == 0) { // Логируем только первую точку для краткости
+                            logMessage(QString("updatePlot: Added point %1 at %2").arg(value).arg(pointTime.toString("hh:mm:ss")));
+                        }
+                    }
+                }
+                
+                logMessage(QString("updatePlot: Series %1 has %2 points").arg(seriesName).arg(pointCount));
+                
+                chart->addSeries(series);
+                series->attachAxis(timeAxis);
+                series->attachAxis(valueAxis);
+                seriesCount++;
+            }
+        }
+        
+        logMessage(QString("updatePlot: Created %1 series").arg(seriesCount));
+    } else {
+        // Создаем тестовые данные для демонстрации
+        logMessage("updatePlot: Creating test chart with sample data");
+        
+        QLineSeries* testSeries = new QLineSeries();
+        testSeries->setName("Тестовые данные");
+        
+        QDateTime now = QDateTime::currentDateTime();
+        for (int i = 0; i < 10; ++i) {
+            QDateTime pointTime = now.addSecs(i);
+            qint64 value = 1000000 + (i * 50000) + (rand() % 100000); // Случайные значения
+            testSeries->append(pointTime.toMSecsSinceEpoch(), value);
+            logMessage(QString("updatePlot: Added test point %1 at %2").arg(value).arg(pointTime.toString("hh:mm:ss")));
+        }
+        
+        chart->addSeries(testSeries);
+        testSeries->attachAxis(timeAxis);
+        testSeries->attachAxis(valueAxis);
+    }
+
+    // Обновляем виджет графика
+    if (m_plotWidget) {
+        m_plotWidget->setChart(chart);
+        logMessage("updatePlot: Chart updated successfully");
+    } else {
+        logMessage("updatePlot: ERROR - m_plotWidget is null!");
+    }
 }
 
 void ShiwaDiffPHCMainWindow::onAbout() {
