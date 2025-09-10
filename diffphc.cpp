@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
   int delay = 100000;
   int samples = 10;
   bool info = false;
-  bool help = false;
+  // bool help = false; // Removed unused variable
   std::vector<int> devices;
 
   struct option longopts[] = {{"count", 1, nullptr, 'c'},

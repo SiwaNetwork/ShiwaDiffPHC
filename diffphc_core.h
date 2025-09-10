@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <set>
 #include <sstream>
 #include <vector>
 #include <string>
@@ -71,6 +72,7 @@ public:
     static std::vector<int> getAvailablePHCDevices();
     static bool validateConfig(const PHCConfig& config, std::string& error);
     static bool requiresRoot();
+    static bool checkPTPDevicesAvailable(std::string& error);
     
     // Statistical analysis
     static PHCStatistics calculateStatistics(const std::vector<int64_t>& values);

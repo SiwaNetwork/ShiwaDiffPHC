@@ -106,6 +106,13 @@ install: all
 		sudo cp shiwadiffphc-gui /usr/local/bin/; \
 		echo "✓ Installed shiwadiffphc-gui to /usr/local/bin/"; \
 	fi
+	@echo "Installing man pages..."
+	@if [ -d man ]; then \
+		sudo mkdir -p /usr/local/share/man/man1; \
+		sudo cp man/*.1 /usr/local/share/man/man1/; \
+		sudo mandb -q; \
+		echo "✓ Installed man pages"; \
+	fi
 	@echo "✓ Installed shiwadiffphc to /usr/local/bin/"
 	@echo "✓ Installed shiwadiffphc-cli to /usr/local/bin/"
 
@@ -114,6 +121,12 @@ uninstall:
 	sudo rm -f /usr/local/bin/shiwadiffphc
 	sudo rm -f /usr/local/bin/shiwadiffphc-cli 
 	sudo rm -f /usr/local/bin/shiwadiffphc-gui
+	@echo "Removing man pages..."
+	@if [ -d man ]; then \
+		sudo rm -f /usr/local/share/man/man1/shiwadiffphc*.1; \
+		sudo mandb -q; \
+		echo "✓ Removed man pages"; \
+	fi
 	@echo "✓ Uninstalled ShiwaDiffPHC tools"
 
 clean:

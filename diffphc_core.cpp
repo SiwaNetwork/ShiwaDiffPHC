@@ -78,25 +78,56 @@ std::vector<int> DiffPHCCore::getAvailablePHCDevices() {
 }
 
 bool DiffPHCCore::validateConfig(const PHCConfig& config, std::string& error) {
+    // Validate count parameter
     if (config.count < 0) {
-        error = "Invalid count parameter";
+        error = "Invalid count parameter: must be >= 0 (0 = infinite)";
         return false;
     }
+    
+    // Validate delay parameter
     if (config.delay < 1) {
-        error = "Invalid delay parameter";
+        error = "Invalid delay parameter: must be >= 1 microsecond";
         return false;
     }
+    if (config.delay > 10000000) { // 10 seconds
+        error = "Invalid delay parameter: must be <= 10,000,000 microseconds (10 seconds)";
+        return false;
+    }
+    
+    // Validate samples parameter
+    if (config.samples < 1) {
+        error = "Invalid samples parameter: must be >= 1";
+        return false;
+    }
+    if (config.samples > PTP_MAX_SAMPLES) {
+        error = "Invalid samples parameter: must be <= " + std::to_string(PTP_MAX_SAMPLES);
+        return false;
+    }
+    
+    // Validate devices
     if (config.devices.empty()) {
         error = "No devices specified";
         return false;
     }
     
-    // Check if devices exist
+    // Check for duplicate devices
+    std::set<int> unique_devices(config.devices.begin(), config.devices.end());
+    if (unique_devices.size() != config.devices.size()) {
+        error = "Duplicate devices specified";
+        return false;
+    }
+    
+    // Check if devices exist and are accessible
     for (auto d : config.devices) {
+        if (d < 0) {
+            error = "Invalid device number: " + std::to_string(d) + " (must be >= 0)";
+            return false;
+        }
+        
         auto name = getPHCFileName(d);
         int fd = openPHC(name);
-        if (fd < 1) {
-            error = "PTP device " + name + " open failed";
+        if (fd < 0) {
+            error = "PTP device " + name + " not found or not accessible";
             return false;
         }
         close(fd);
@@ -107,6 +138,19 @@ bool DiffPHCCore::validateConfig(const PHCConfig& config, std::string& error) {
 
 bool DiffPHCCore::requiresRoot() {
     return geteuid() != 0;
+}
+
+bool DiffPHCCore::checkPTPDevicesAvailable(std::string& error) {
+    auto devices = getAvailablePHCDevices();
+    if (devices.empty()) {
+        error = "No PTP devices found in the system. Please check:\n"
+                "1. PTP support is enabled in kernel\n"
+                "2. PTP hardware is connected\n"
+                "3. PTP drivers are loaded\n"
+                "4. Run 'ls /dev/ptp*' to check available devices";
+        return false;
+    }
+    return true;
 }
 
 PHCResult DiffPHCCore::measurePHCDifferences(const PHCConfig& config) {

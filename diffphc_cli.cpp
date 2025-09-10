@@ -343,8 +343,8 @@ public:
     }
 
     int parseArgs(int argc, char** argv) {
-        bool csv_format = false;
-        int precision = 0;
+        [[maybe_unused]] bool csv_format = false; // TODO: implement CSV format support
+        [[maybe_unused]] int precision = 0; // TODO: implement precision setting
 
         struct option longopts[] = {
             {"count", 1, nullptr, 'c'},
@@ -481,6 +481,13 @@ public:
             return 2;
         }
 
+        // Check if PTP devices are available
+        std::string ptp_error;
+        if (!DiffPHCCore::checkPTPDevicesAvailable(ptp_error)) {
+            std::cerr << "Error: " << ptp_error << std::endl;
+            return 3;
+        }
+
         if (verbose) {
             std::cout << "Configuration:" << std::endl;
             std::cout << "  Iterations: " << (config.count == 0 ? "infinite" : std::to_string(config.count)) << std::endl;
@@ -496,7 +503,10 @@ public:
         auto result = DiffPHCCore::measurePHCDifferences(config);
         
         if (!output_file.empty()) {
-            freopen(output_file.c_str(), "w", stdout);
+            if (freopen(output_file.c_str(), "w", stdout) == nullptr) {
+                std::cerr << "Error: failed to redirect output to file '" << output_file << "'" << std::endl;
+                return 1;
+            }
         }
 
         outputResults(result);
