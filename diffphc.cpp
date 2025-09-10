@@ -40,8 +40,7 @@ std::string getPHCFileName(int phc_index) {
 int64_t getCPUNow() {
   struct timespec ts = {};
   clock_gettime(CLOCK_REALTIME, &ts);
-  std::chrono::seconds seconds(ts.tv_sec);
-  return ts.tv_nsec + std::chrono::nanoseconds(seconds).count();
+  return ts.tv_nsec + ts.tv_sec * 1000000000LL;
 }
 
 int64_t getPTPSysOffsetExtended(int clkPTPid, int samples);
@@ -288,9 +287,9 @@ int64_t getPTPSysOffsetExtended(int clkPTPid, int samples) {
 
   int64_t mindelay = uint64_t(-1);
   for (int i = 0; i < samples; ++i) {
-    t0[i] = sys_off.ts[i][0].nsec + 1000'000ULL * sys_off.ts[i][0].sec;
-    t1[i] = sys_off.ts[i][1].nsec + 1000'000ULL * sys_off.ts[i][1].sec;
-    t2[i] = sys_off.ts[i][2].nsec + 1000'000ULL * sys_off.ts[i][2].sec;
+    t0[i] = sys_off.ts[i][0].nsec + 1000'000'000ULL * sys_off.ts[i][0].sec;
+    t1[i] = sys_off.ts[i][1].nsec + 1000'000'000ULL * sys_off.ts[i][1].sec;
+    t2[i] = sys_off.ts[i][2].nsec + 1000'000'000ULL * sys_off.ts[i][2].sec;
     delay[i] = t2[i] - t0[i];
     if (mindelay > delay[i]) {
       mindelay = delay[i];

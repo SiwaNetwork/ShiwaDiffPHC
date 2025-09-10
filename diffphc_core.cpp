@@ -10,8 +10,7 @@ std::string DiffPHCCore::getPHCFileName(int phc_index) {
 int64_t DiffPHCCore::getCPUNow() {
     struct timespec ts = {};
     clock_gettime(CLOCK_REALTIME, &ts);
-    std::chrono::seconds seconds(ts.tv_sec);
-    return ts.tv_nsec + std::chrono::nanoseconds(seconds).count();
+    return ts.tv_nsec + ts.tv_sec * 1000000000LL;
 }
 
 int DiffPHCCore::openPHC(const std::string& pch_path) {
@@ -143,8 +142,7 @@ PHCResult DiffPHCCore::measurePHCDifferences(const PHCConfig& config) {
     for (int c = 0; config.count == 0 || c < config.count; ++c) {
         int64_t baseTimestamp = getCPUNow();
         for (int d = 0; d < numDev; ++d) {
-            int64_t now = getCPUNow();
-            ts[d] = getPTPSysOffsetExtended(dev[d], config.samples) - (now - baseTimestamp);
+            ts[d] = getPTPSysOffsetExtended(dev[d], config.samples);
         }
         
         std::vector<int64_t> differences;
@@ -193,9 +191,9 @@ int64_t DiffPHCCore::getPTPSysOffsetExtended(int clkPTPid, int samples) {
 
     int64_t mindelay = uint64_t(-1);
     for (int i = 0; i < samples; ++i) {
-        t0[i] = sys_off.ts[i][0].nsec + 1000'000ULL * sys_off.ts[i][0].sec;
-        t1[i] = sys_off.ts[i][1].nsec + 1000'000ULL * sys_off.ts[i][1].sec;
-        t2[i] = sys_off.ts[i][2].nsec + 1000'000ULL * sys_off.ts[i][2].sec;
+        t0[i] = sys_off.ts[i][0].nsec + 1000'000'000ULL * sys_off.ts[i][0].sec;
+        t1[i] = sys_off.ts[i][1].nsec + 1000'000'000ULL * sys_off.ts[i][1].sec;
+        t2[i] = sys_off.ts[i][2].nsec + 1000'000'000ULL * sys_off.ts[i][2].sec;
         delay[i] = t2[i] - t0[i];
         if (mindelay > delay[i]) {
             mindelay = delay[i];
