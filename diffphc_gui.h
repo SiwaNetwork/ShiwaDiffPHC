@@ -59,6 +59,12 @@ private slots:
     void onShowDeviceInfo();
     void onRefreshDevices();
     void onAbout();
+    void onToggleTheme();
+    void onExportChart();
+    void onZoomIn();
+    void onZoomOut();
+    void onResetZoom();
+    void clearResults();
 
 private:
     void setupUI();
@@ -66,14 +72,19 @@ private:
     void setupControlPanel();
     void setupResultsPanel();
     void setupStatusBar();
+    void setupKeyboardShortcuts();
+    void applyDarkTheme();
     void updateDeviceList();
     void updateResultsTable(const PHCResult& result);
     void updateStatisticsTable(const PHCResult& result);
     void updatePlot(const PHCResult& result);
     void logMessage(const QString& message);
-    void clearResults();
     bool validateConfiguration();
     PHCConfig getCurrentConfig();
+    
+    // Drag and drop support
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
 
     // UI Components
     QWidget* m_centralWidget;
@@ -118,6 +129,11 @@ private:
     bool m_measuring;
     int m_currentIteration;
     std::vector<int> m_availableDevices;
+    
+    // UI state
+    bool m_darkTheme;
+    QChart* m_currentChart;
+    QChartView* m_chartView;
 };
 
 #endif // SHIWADIFFPHC_GUI_H

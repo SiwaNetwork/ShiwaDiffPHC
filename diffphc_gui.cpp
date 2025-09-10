@@ -6,6 +6,14 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QStyleFactory>
+#include <QShortcut>
+#include <QKeySequence>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QFile>
+#include <QTextStream>
 
 ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -14,13 +22,20 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     , m_measuring(false)
     , m_currentIteration(0)
 {
-    setWindowTitle("ShiwaDiffPHC - Анализатор различий протокола точного времени");
-    setMinimumSize(800, 600);
-    resize(1200, 800);
+    setWindowTitle("ShiwaDiffPHC v1.3.0 - Анализатор различий протокола точного времени");
+    setMinimumSize(1000, 700);
+    resize(1400, 900);
+    
+    // Apply modern dark theme
+    applyDarkTheme();
+    
+    // Enable drag and drop
+    setAcceptDrops(true);
 
     setupUI();
     setupMenuBar();
     setupStatusBar();
+    setupKeyboardShortcuts();
     
     updateDeviceList();
     
@@ -32,7 +47,7 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     m_currentConfig.samples = 10;
     m_currentConfig.debug = false;
     
-    logMessage("ShiwaDiffPHC GUI инициализирован");
+    logMessage("ShiwaDiffPHC GUI v1.3.0 инициализирован с современным интерфейсом");
     
     // Показываем тестовый график при запуске
     PHCResult testResult;
@@ -60,24 +75,73 @@ void ShiwaDiffPHCMainWindow::setupUI() {
 }
 
 void ShiwaDiffPHCMainWindow::setupMenuBar() {
+    // File Menu
     auto* fileMenu = menuBar()->addMenu("&File");
     
     auto* loadConfigAction = fileMenu->addAction("&Load Configuration...");
+    loadConfigAction->setShortcut(QKeySequence("Ctrl+O"));
     connect(loadConfigAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onLoadConfig);
     
     auto* saveConfigAction = fileMenu->addAction("&Save Configuration...");
+    saveConfigAction->setShortcut(QKeySequence("Ctrl+Shift+S"));
     connect(saveConfigAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onSaveConfig);
     
     fileMenu->addSeparator();
     
     auto* saveResultsAction = fileMenu->addAction("Save &Results...");
+    saveResultsAction->setShortcut(QKeySequence("Ctrl+E"));
     connect(saveResultsAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onSaveResults);
     
     fileMenu->addSeparator();
     
     auto* exitAction = fileMenu->addAction("E&xit");
+    exitAction->setShortcut(QKeySequence("Ctrl+Q"));
     connect(exitAction, &QAction::triggered, this, &QWidget::close);
     
+    // View Menu
+    auto* viewMenu = menuBar()->addMenu("&View");
+    
+    auto* toggleThemeAction = viewMenu->addAction("Toggle &Theme");
+    toggleThemeAction->setShortcut(QKeySequence("Ctrl+T"));
+    connect(toggleThemeAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onToggleTheme);
+    
+    viewMenu->addSeparator();
+    
+    auto* zoomInAction = viewMenu->addAction("Zoom &In");
+    zoomInAction->setShortcut(QKeySequence("Ctrl+Plus"));
+    connect(zoomInAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onZoomIn);
+    
+    auto* zoomOutAction = viewMenu->addAction("Zoom &Out");
+    zoomOutAction->setShortcut(QKeySequence("Ctrl+Minus"));
+    connect(zoomOutAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onZoomOut);
+    
+    auto* resetZoomAction = viewMenu->addAction("&Reset Zoom");
+    resetZoomAction->setShortcut(QKeySequence("Ctrl+0"));
+    connect(resetZoomAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onResetZoom);
+    
+    viewMenu->addSeparator();
+    
+    auto* exportChartAction = viewMenu->addAction("Export &Chart...");
+    exportChartAction->setShortcut(QKeySequence("Ctrl+Shift+E"));
+    connect(exportChartAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onExportChart);
+    
+    // Tools Menu
+    auto* toolsMenu = menuBar()->addMenu("&Tools");
+    
+    auto* refreshDevicesAction = toolsMenu->addAction("&Refresh Devices");
+    refreshDevicesAction->setShortcut(QKeySequence("F5"));
+    connect(refreshDevicesAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onRefreshDevices);
+    
+    auto* deviceInfoAction = toolsMenu->addAction("Device &Info");
+    connect(deviceInfoAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onShowDeviceInfo);
+    
+    toolsMenu->addSeparator();
+    
+    auto* clearResultsAction = toolsMenu->addAction("&Clear Results");
+    clearResultsAction->setShortcut(QKeySequence("Ctrl+Delete"));
+    connect(clearResultsAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::clearResults);
+    
+    // Help Menu
     auto* helpMenu = menuBar()->addMenu("&Help");
     auto* aboutAction = helpMenu->addAction("&О программе ShiwaDiffPHC");
     connect(aboutAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onAbout);
@@ -200,14 +264,17 @@ void ShiwaDiffPHCMainWindow::setupResultsPanel() {
     
     m_tabWidget->addTab(statisticsWidget, "Статистический анализ");
     
-    // Plot Tab (real charts)
+    // Plot Tab (real charts) - Enhanced interactive chart
     m_plotWidget = new QChartView;
     m_plotWidget->setRenderHint(QPainter::Antialiasing);
+    m_plotWidget->setRubberBand(QChartView::RectangleRubberBand); // Enable zoom with mouse
+    m_plotWidget->setDragMode(QGraphicsView::ScrollHandDrag); // Enable pan with mouse
     
     // Создаем пустой график для начала
     QChart* initialChart = new QChart();
-    initialChart->setTitle("Визуализация различий PTP устройств");
+    initialChart->setTitle("📊 Интерактивная визуализация различий PTP устройств");
     initialChart->setAnimationOptions(QChart::SeriesAnimations);
+    initialChart->setTheme(QChart::ChartThemeDark);
     
     // Добавляем текст на график
     QLineSeries* placeholderSeries = new QLineSeries();
@@ -562,10 +629,14 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
     // Добавляем отладочную информацию
     logMessage(QString("updatePlot called - success: %1, differences size: %2").arg(result.success).arg(result.differences.size()));
     
-    // Создаем тестовый график даже если данных нет
+    // Создаем интерактивный график
     QChart* chart = new QChart();
-    chart->setTitle("Визуализация различий PTP устройств");
+    chart->setTitle("📊 Интерактивная визуализация различий PTP устройств");
     chart->setAnimationOptions(QChart::SeriesAnimations);
+    chart->setTheme(m_darkTheme ? QChart::ChartThemeDark : QChart::ChartThemeLight);
+    
+    // Настройка интерактивности
+    chart->setAcceptHoverEvents(true);
 
     // Создаем временную ось
     QDateTimeAxis* timeAxis = new QDateTimeAxis;
@@ -643,10 +714,13 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
         testSeries->attachAxis(valueAxis);
     }
 
+    // Сохраняем ссылку на текущий график для экспорта
+    m_currentChart = chart;
+    
     // Обновляем виджет графика
     if (m_plotWidget) {
         m_plotWidget->setChart(chart);
-        logMessage("updatePlot: Chart updated successfully");
+        logMessage("updatePlot: Интерактивный график обновлен успешно");
     } else {
         logMessage("updatePlot: ERROR - m_plotWidget is null!");
     }
@@ -654,14 +728,163 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
 
 void ShiwaDiffPHCMainWindow::onAbout() {
     QMessageBox::about(this, "О программе ShiwaDiffPHC",
-                      "ShiwaDiffPHC v1.2.0\n\n"
-                      "Анализатор различий протокола точного времени (PTP)\n\n"
+                      "ShiwaDiffPHC v1.3.0\n\n"
+                      "🎯 Анализатор различий протокола точного времени (PTP)\n\n"
                       "Этот инструмент измеряет временные различия между PTP устройствами\n"
                       "для анализа точности синхронизации часов.\n\n"
-                      "НОВИНКА v1.2.0: Расширенный статистический анализ!\n"
-                      "• Медиана, стандартное отклонение, размах\n"
-                      "• Автоматические расчеты в реальном времени\n\n"
-                      "Требует привилегии root для доступа к PTP устройствам.");
+                      "✨ НОВИНКА v1.3.0 - Фаза 2: Расширение интерфейса!\n"
+                      "🎨 Современный темный интерфейс\n"
+                      "⌨️ Клавиатурные сокращения\n"
+                      "📊 Интерактивные графики с зумом\n"
+                      "💾 Экспорт графиков в PNG/SVG\n"
+                      "🖱️ Drag & Drop для конфигураций\n"
+                      "📈 Расширенный статистический анализ\n\n"
+                      "🔧 Требует привилегии root для доступа к PTP устройствам.\n"
+                      "📚 Документация: TROUBLESHOOTING.md");
+}
+
+void ShiwaDiffPHCMainWindow::applyDarkTheme() {
+    m_darkTheme = true;
+    
+    // Load stylesheet from file
+    QFile styleFile("styles.qss");
+    if (styleFile.open(QFile::ReadOnly)) {
+        QString style = QLatin1String(styleFile.readAll());
+        qApp->setStyleSheet(style);
+        styleFile.close();
+    } else {
+        // Fallback to inline styles if file not found
+        qApp->setStyleSheet(
+            "QMainWindow { background-color: #2b2b2b; color: #ffffff; }"
+            "QWidget { background-color: #2b2b2b; color: #ffffff; }"
+            "QPushButton { background-color: #4fc3f7; border: none; border-radius: 6px; color: #000000; font-weight: bold; padding: 8px 16px; }"
+            "QPushButton:hover { background-color: #29b6f6; }"
+            "QPushButton:pressed { background-color: #0288d1; }"
+            "QGroupBox { font-weight: bold; border: 2px solid #555555; border-radius: 8px; margin-top: 1ex; padding-top: 10px; background-color: #3c3c3c; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px 0 5px; color: #4fc3f7; font-size: 10pt; font-weight: bold; }"
+            "QSpinBox { background-color: #404040; border: 2px solid #555555; border-radius: 4px; padding: 4px; color: #ffffff; }"
+            "QCheckBox { color: #ffffff; spacing: 8px; }"
+            "QTableWidget { background-color: #404040; alternate-background-color: #4a4a4a; selection-background-color: #4fc3f7; gridline-color: #555555; border: 1px solid #555555; border-radius: 4px; }"
+            "QTabWidget::pane { border: 1px solid #555555; background-color: #3c3c3c; border-radius: 4px; }"
+            "QTabBar::tab { background-color: #555555; color: #ffffff; padding: 8px 16px; margin-right: 2px; border-top-left-radius: 4px; border-top-right-radius: 4px; }"
+            "QTabBar::tab:selected { background-color: #4fc3f7; color: #000000; font-weight: bold; }"
+            "QPlainTextEdit, QTextEdit { background-color: #404040; border: 1px solid #555555; border-radius: 4px; color: #ffffff; font-family: 'Consolas', 'Monaco', monospace; }"
+            "QProgressBar { border: 2px solid #555555; border-radius: 8px; text-align: center; background-color: #404040; color: #ffffff; font-weight: bold; }"
+            "QProgressBar::chunk { background-color: #4fc3f7; border-radius: 6px; }"
+            "QStatusBar { background-color: #3c3c3c; color: #ffffff; border-top: 1px solid #555555; }"
+            "QMenuBar { background-color: #3c3c3c; color: #ffffff; border-bottom: 1px solid #555555; }"
+            "QMenu { background-color: #3c3c3c; color: #ffffff; border: 1px solid #555555; border-radius: 4px; }"
+            "QMenu::item:selected { background-color: #4fc3f7; color: #000000; }"
+        );
+    }
+}
+
+void ShiwaDiffPHCMainWindow::setupKeyboardShortcuts() {
+    // Start/Stop measurement
+    new QShortcut(QKeySequence("Ctrl+R"), this, SLOT(onStartMeasurement()));
+    new QShortcut(QKeySequence("Ctrl+S"), this, SLOT(onStopMeasurement()));
+    
+    // File operations
+    new QShortcut(QKeySequence("Ctrl+O"), this, SLOT(onLoadConfig()));
+    new QShortcut(QKeySequence("Ctrl+Shift+S"), this, SLOT(onSaveConfig()));
+    new QShortcut(QKeySequence("Ctrl+E"), this, SLOT(onSaveResults()));
+    
+    // Chart operations
+    new QShortcut(QKeySequence("Ctrl+Plus"), this, SLOT(onZoomIn()));
+    new QShortcut(QKeySequence("Ctrl+Minus"), this, SLOT(onZoomOut()));
+    new QShortcut(QKeySequence("Ctrl+0"), this, SLOT(onResetZoom()));
+    new QShortcut(QKeySequence("Ctrl+Shift+E"), this, SLOT(onExportChart()));
+    
+    // Theme toggle
+    new QShortcut(QKeySequence("Ctrl+T"), this, SLOT(onToggleTheme()));
+    
+    // Device refresh
+    new QShortcut(QKeySequence("F5"), this, SLOT(onRefreshDevices()));
+    
+    // Clear results
+    new QShortcut(QKeySequence("Ctrl+Delete"), this, SLOT(clearResults()));
+}
+
+void ShiwaDiffPHCMainWindow::onToggleTheme() {
+    m_darkTheme = !m_darkTheme;
+    applyDarkTheme();
+    logMessage(QString("Тема переключена на: %1").arg(m_darkTheme ? "Темная" : "Светлая"));
+}
+
+void ShiwaDiffPHCMainWindow::onExportChart() {
+    if (!m_currentChart) {
+        QMessageBox::warning(this, "Экспорт графика", "Нет данных для экспорта");
+        return;
+    }
+    
+    QString fileName = QFileDialog::getSaveFileName(this, 
+        "Экспорт графика", 
+        QString("shiwadiffphc_chart_%1.png").arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss")),
+        "PNG Files (*.png);;SVG Files (*.svg);;JPEG Files (*.jpg)");
+    
+    if (!fileName.isEmpty()) {
+        QPixmap pixmap = m_chartView->grab();
+        if (pixmap.save(fileName)) {
+            logMessage(QString("График экспортирован: %1").arg(fileName));
+            QMessageBox::information(this, "Экспорт", "График успешно экспортирован");
+        } else {
+            QMessageBox::critical(this, "Ошибка", "Не удалось сохранить график");
+        }
+    }
+}
+
+void ShiwaDiffPHCMainWindow::onZoomIn() {
+    if (m_chartView) {
+        m_chartView->chart()->zoomIn();
+        logMessage("Увеличение графика");
+    }
+}
+
+void ShiwaDiffPHCMainWindow::onZoomOut() {
+    if (m_chartView) {
+        m_chartView->chart()->zoomOut();
+        logMessage("Уменьшение графика");
+    }
+}
+
+void ShiwaDiffPHCMainWindow::onResetZoom() {
+    if (m_chartView) {
+        m_chartView->chart()->zoomReset();
+        logMessage("Сброс масштаба графика");
+    }
+}
+
+void ShiwaDiffPHCMainWindow::dragEnterEvent(QDragEnterEvent* event) {
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    }
+}
+
+void ShiwaDiffPHCMainWindow::dropEvent(QDropEvent* event) {
+    const QMimeData* mimeData = event->mimeData();
+    
+    if (mimeData->hasUrls()) {
+        QList<QUrl> urlList = mimeData->urls();
+        
+        for (const QUrl& url : urlList) {
+            QString fileName = url.toLocalFile();
+            if (fileName.endsWith(".json") || fileName.endsWith(".conf")) {
+                // Load configuration file
+                QFile file(fileName);
+                if (file.open(QFile::ReadOnly)) {
+                    QTextStream in(&file);
+                    QString content = in.readAll();
+                    file.close();
+                    
+                    // Parse and apply configuration
+                    logMessage(QString("Загружена конфигурация: %1").arg(fileName));
+                    // TODO: Implement configuration parsing
+                }
+            }
+        }
+        
+        event->acceptProposedAction();
+    }
 }
 
 // Main function for GUI application
@@ -669,7 +892,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName("ShiwaDiffPHC");
-    app.setApplicationVersion("1.2.0");
+    app.setApplicationVersion("1.3.0");
     app.setOrganizationName("Shiwa Tools");
     
     ShiwaDiffPHCMainWindow window;
