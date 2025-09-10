@@ -1,0 +1,27 @@
+# Compiled binaries
+shiwadiffphc*
+diffphc*
+
+# Object files
+*.o
+
+# Qt MOC files
+*.moc
+
+# Build artifacts
+*.log
+
+# Test results and demo outputs
+results*.csv
+results*.json
+test_results.csv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
