@@ -22,15 +22,22 @@ TrendAnalysis AdvancedAnalysis::analyzeTrend(const std::vector<int64_t>& values,
         return result;
     }
     
-    // Generate timestamps if not provided
-    std::vector<int64_t> time_vals = timestamps;
-    if (time_vals.empty()) {
-        time_vals = generateTimestamps(0, 1000000, values.size()); // 1ms intervals
+    // Generate normalized timestamps (0, 1, 2, 3, ...)
+    std::vector<double> x(values.size());
+    for (size_t i = 0; i < values.size(); ++i) {
+        x[i] = static_cast<double>(i);
     }
     
-    // Convert to double for calculations
-    std::vector<double> x = convertToDouble(time_vals);
+    // Convert values to double and normalize
     std::vector<double> y = convertToDouble(values);
+    
+    // Normalize values to prevent overflow
+    if (!y.empty()) {
+        double mean_y = calculateMean(y);
+        for (size_t i = 0; i < y.size(); ++i) {
+            y[i] -= mean_y; // Center around zero
+        }
+    }
     
     // Calculate linear regression
     result.r_squared = calculateLinearRegression(x, y, result.slope, result.intercept);
@@ -234,6 +241,9 @@ AnomalyDetection AdvancedAnalysis::detectAnomalies(const std::vector<int64_t>& v
         return result; // Empty result for insufficient data
     }
     
+    // Convert to double for better precision
+    std::vector<double> double_values = convertToDouble(values);
+    
     // Use IQR method for anomaly detection
     result.outlier_indices = detectOutliersIQR(values, threshold_multiplier);
     result.total_anomalies = result.outlier_indices.size();
@@ -400,14 +410,26 @@ AdvancedStatistics AdvancedAnalysis::performComprehensiveAnalysis(const PHCResul
         return stats; // Insufficient data
     }
     
-    // Perform trend analysis
-    stats.trend = analyzeTrend(time_series);
+    // Convert absolute PTP times to relative differences for analysis
+    // This removes the epoch offset and focuses on the actual time differences
+    std::vector<int64_t> relative_differences;
+    if (time_series.size() > 1) {
+        int64_t base_time = time_series[0];
+        for (int64_t value : time_series) {
+            relative_differences.push_back(value - base_time);
+        }
+    } else {
+        relative_differences = time_series;
+    }
     
-    // Perform spectral analysis
-    stats.spectral = performFFT(time_series, 1.0); // 1 Hz sampling rate
+    // Perform trend analysis on relative differences
+    stats.trend = analyzeTrend(relative_differences);
     
-    // Perform anomaly detection
-    stats.anomalies = detectAnomalies(time_series);
+    // Perform spectral analysis on relative differences
+    stats.spectral = performFFT(relative_differences, 1.0); // 1 Hz sampling rate
+    
+    // Perform anomaly detection on relative differences
+    stats.anomalies = detectAnomalies(relative_differences);
     
     // Set metadata
     auto end_time = std::chrono::high_resolution_clock::now();
