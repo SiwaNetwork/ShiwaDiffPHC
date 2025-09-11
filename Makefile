@@ -10,7 +10,7 @@ MOC = $(shell which moc-qt5 2>/dev/null || which moc 2>/dev/null || echo "moc")
 # Source files
 CORE_SOURCES = diffphc_core.cpp
 CLI_SOURCES = diffphc_cli.cpp
-GUI_SOURCES = diffphc_gui.cpp
+GUI_SOURCES = diffphc_gui.cpp advanced_analysis.cpp
 LEGACY_SOURCES = diffphc.cpp
 
 # Object files

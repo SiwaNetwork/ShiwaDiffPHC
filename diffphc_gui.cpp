@@ -21,6 +21,7 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     , m_measurementTimer(new QTimer(this))
     , m_measuring(false)
     , m_currentIteration(0)
+    , m_hasAdvancedStats(false)
 {
     setWindowTitle("ShiwaDiffPHC v1.3.0 - Анализатор различий протокола точного времени");
     setMinimumSize(1000, 700);
@@ -140,6 +141,30 @@ void ShiwaDiffPHCMainWindow::setupMenuBar() {
     auto* clearResultsAction = toolsMenu->addAction("&Clear Results");
     clearResultsAction->setShortcut(QKeySequence("Ctrl+Delete"));
     connect(clearResultsAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::clearResults);
+    
+    // Analysis Menu
+    auto* analysisMenu = menuBar()->addMenu("&Analysis");
+    
+    auto* advancedAnalysisAction = analysisMenu->addAction("&Advanced Analysis");
+    advancedAnalysisAction->setShortcut(QKeySequence("Ctrl+A"));
+    connect(advancedAnalysisAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onAdvancedAnalysis);
+    
+    analysisMenu->addSeparator();
+    
+    auto* trendAnalysisAction = analysisMenu->addAction("&Trend Analysis");
+    connect(trendAnalysisAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onTrendAnalysis);
+    
+    auto* spectralAnalysisAction = analysisMenu->addAction("&Spectral Analysis");
+    connect(spectralAnalysisAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onSpectralAnalysis);
+    
+    auto* anomalyDetectionAction = analysisMenu->addAction("&Anomaly Detection");
+    connect(anomalyDetectionAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onAnomalyDetection);
+    
+    analysisMenu->addSeparator();
+    
+    auto* generateReportAction = analysisMenu->addAction("Generate &Report");
+    generateReportAction->setShortcut(QKeySequence("Ctrl+Shift+R"));
+    connect(generateReportAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onGenerateReport);
     
     // Help Menu
     auto* helpMenu = menuBar()->addMenu("&Help");
@@ -884,6 +909,272 @@ void ShiwaDiffPHCMainWindow::dropEvent(QDropEvent* event) {
         }
         
         event->acceptProposedAction();
+    }
+}
+
+void ShiwaDiffPHCMainWindow::onAdvancedAnalysis() {
+    if (m_results.empty()) {
+        QMessageBox::information(this, "Расширенный анализ", 
+                               "Нет данных для анализа. Сначала выполните измерения.");
+        return;
+    }
+    
+    // Perform comprehensive analysis on the latest result
+    const PHCResult& latestResult = m_results.back();
+    logMessage("Выполняется расширенный анализ...");
+    
+    m_advancedStats = AdvancedAnalysis::performComprehensiveAnalysis(latestResult);
+    m_hasAdvancedStats = true;
+    
+    // Display results in a dialog
+    QString analysisText = QString(
+        "📊 РАСШИРЕННЫЙ АНАЛИЗ ЗАВЕРШЕН\n\n"
+        "🔍 Анализ трендов:\n"
+        "  • Тип тренда: %1\n"
+        "  • Наклон: %2 нс/сек\n"
+        "  • R²: %3\n"
+        "  • Корреляция: %4\n"
+        "  • Статистически значим: %5\n\n"
+        "📈 Спектральный анализ:\n"
+        "  • Доминирующая частота: %6\n"
+        "  • Общая мощность: %7\n"
+        "  • Низкие частоты: %8\n"
+        "  • Средние частоты: %9\n"
+        "  • Высокие частоты: %10\n\n"
+        "⚠️ Детекция аномалий:\n"
+        "  • Найдено аномалий: %11\n"
+        "  • Процент аномалий: %12%\n"
+        "  • Порог: %13\n\n"
+        "⏱️ Метаданные:\n"
+        "  • Точок данных: %14\n"
+        "  • Время анализа: %15\n"
+    ).arg(QString::fromStdString(m_advancedStats.trend.trend_type))
+     .arg(m_advancedStats.trend.slope, 0, 'e', 2)
+     .arg(m_advancedStats.trend.r_squared, 0, 'f', 3)
+     .arg(m_advancedStats.trend.correlation, 0, 'f', 3)
+     .arg(m_advancedStats.trend.is_significant ? "Да" : "Нет")
+     .arg(QString::fromStdString(AdvancedAnalysis::formatFrequency(m_advancedStats.spectral.dominant_frequency)))
+     .arg(m_advancedStats.spectral.total_power, 0, 'e', 2)
+     .arg(m_advancedStats.spectral.power_bands["low_frequency"], 0, 'e', 2)
+     .arg(m_advancedStats.spectral.power_bands["mid_frequency"], 0, 'e', 2)
+     .arg(m_advancedStats.spectral.power_bands["high_frequency"], 0, 'e', 2)
+     .arg(m_advancedStats.anomalies.total_anomalies)
+     .arg(m_advancedStats.anomalies.anomaly_rate, 0, 'f', 1)
+     .arg(m_advancedStats.anomalies.threshold, 0, 'f', 1)
+     .arg(m_advancedStats.data_points_analyzed)
+     .arg(QString::fromStdString(AdvancedAnalysis::formatDuration(m_advancedStats.analysis_duration_ms)));
+    
+    QMessageBox::information(this, "Результаты расширенного анализа", analysisText);
+    logMessage("Расширенный анализ завершен успешно");
+}
+
+void ShiwaDiffPHCMainWindow::onTrendAnalysis() {
+    if (!m_hasAdvancedStats) {
+        onAdvancedAnalysis();
+    }
+    
+    QString trendText = QString(
+        "📈 АНАЛИЗ ТРЕНДОВ\n\n"
+        "Тип тренда: %1\n"
+        "Наклон: %2 нс/сек\n"
+        "Пересечение: %3 нс\n"
+        "Коэффициент детерминации (R²): %4\n"
+        "Корреляция: %5\n"
+        "P-значение: %6\n"
+        "Статистически значим: %7\n\n"
+        "Интерпретация:\n"
+        "%8"
+    ).arg(QString::fromStdString(m_advancedStats.trend.trend_type))
+     .arg(m_advancedStats.trend.slope, 0, 'e', 2)
+     .arg(m_advancedStats.trend.intercept, 0, 'e', 2)
+     .arg(m_advancedStats.trend.r_squared, 0, 'f', 3)
+     .arg(m_advancedStats.trend.correlation, 0, 'f', 3)
+     .arg(m_advancedStats.trend.p_value, 0, 'f', 3)
+     .arg(m_advancedStats.trend.is_significant ? "Да" : "Нет")
+     .arg(getTrendInterpretation());
+    
+    QMessageBox::information(this, "Анализ трендов", trendText);
+}
+
+void ShiwaDiffPHCMainWindow::onSpectralAnalysis() {
+    if (!m_hasAdvancedStats) {
+        onAdvancedAnalysis();
+    }
+    
+    QString spectralText = QString(
+        "📊 СПЕКТРАЛЬНЫЙ АНАЛИЗ\n\n"
+        "Доминирующая частота: %1\n"
+        "Общая мощность: %2\n\n"
+        "Распределение по частотным полосам:\n"
+        "• Низкие частоты (< 0.1 Гц): %3\n"
+        "• Средние частоты (0.1-1 Гц): %4\n"
+        "• Высокие частоты (> 1 Гц): %5\n\n"
+        "Интерпретация:\n"
+        "%6"
+    ).arg(QString::fromStdString(AdvancedAnalysis::formatFrequency(m_advancedStats.spectral.dominant_frequency)))
+     .arg(m_advancedStats.spectral.total_power, 0, 'e', 2)
+     .arg(m_advancedStats.spectral.power_bands["low_frequency"], 0, 'e', 2)
+     .arg(m_advancedStats.spectral.power_bands["mid_frequency"], 0, 'e', 2)
+     .arg(m_advancedStats.spectral.power_bands["high_frequency"], 0, 'e', 2)
+     .arg(getSpectralInterpretation());
+    
+    QMessageBox::information(this, "Спектральный анализ", spectralText);
+}
+
+void ShiwaDiffPHCMainWindow::onAnomalyDetection() {
+    if (!m_hasAdvancedStats) {
+        onAdvancedAnalysis();
+    }
+    
+    QString anomalyText = QString(
+        "⚠️ ДЕТЕКЦИЯ АНОМАЛИЙ\n\n"
+        "Найдено аномалий: %1\n"
+        "Процент аномалий: %2%\n"
+        "Порог детекции: %3\n\n"
+        "Индексы аномалий: %4\n\n"
+        "Интерпретация:\n"
+        "%5"
+    ).arg(m_advancedStats.anomalies.total_anomalies)
+     .arg(m_advancedStats.anomalies.anomaly_rate, 0, 'f', 1)
+     .arg(m_advancedStats.anomalies.threshold, 0, 'f', 1)
+     .arg(formatAnomalyIndices())
+     .arg(getAnomalyInterpretation());
+    
+    QMessageBox::information(this, "Детекция аномалий", anomalyText);
+}
+
+void ShiwaDiffPHCMainWindow::onGenerateReport() {
+    if (!m_hasAdvancedStats) {
+        QMessageBox::information(this, "Генерация отчета", 
+                               "Сначала выполните расширенный анализ.");
+        return;
+    }
+    
+    QString fileName = QFileDialog::getSaveFileName(this, 
+        "Сохранить отчет", 
+        QString("shiwadiffphc_report_%1.txt").arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss")),
+        "Text Files (*.txt);;All Files (*)");
+    
+    if (!fileName.isEmpty()) {
+        QFile file(fileName);
+        if (file.open(QFile::WriteOnly | QFile::Text)) {
+            QTextStream out(&file);
+            out.setCodec("UTF-8");
+            
+            out << "ОТЧЕТ SHIWADIFFPHC - РАСШИРЕННЫЙ АНАЛИЗ\n";
+            out << "==========================================\n\n";
+            out << "Дата создания: " << QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss") << "\n\n";
+            
+            // Trend Analysis
+            out << "АНАЛИЗ ТРЕНДОВ\n";
+            out << "---------------\n";
+            out << "Тип тренда: " << QString::fromStdString(m_advancedStats.trend.trend_type) << "\n";
+            out << "Наклон: " << QString::number(m_advancedStats.trend.slope, 'e', 2) << " нс/сек\n";
+            out << "R²: " << QString::number(m_advancedStats.trend.r_squared, 'f', 3) << "\n";
+            out << "Корреляция: " << QString::number(m_advancedStats.trend.correlation, 'f', 3) << "\n\n";
+            
+            // Spectral Analysis
+            out << "СПЕКТРАЛЬНЫЙ АНАЛИЗ\n";
+            out << "--------------------\n";
+            out << "Доминирующая частота: " << QString::fromStdString(AdvancedAnalysis::formatFrequency(m_advancedStats.spectral.dominant_frequency)) << "\n";
+            out << "Общая мощность: " << QString::number(m_advancedStats.spectral.total_power, 'e', 2) << "\n\n";
+            
+            // Anomaly Detection
+            out << "ДЕТЕКЦИЯ АНОМАЛИЙ\n";
+            out << "------------------\n";
+            out << "Найдено аномалий: " << m_advancedStats.anomalies.total_anomalies << "\n";
+            out << "Процент аномалий: " << QString::number(m_advancedStats.anomalies.anomaly_rate, 'f', 1) << "%\n\n";
+            
+            // Metadata
+            out << "МЕТАДАННЫЕ\n";
+            out << "-----------\n";
+            out << "Точек данных: " << m_advancedStats.data_points_analyzed << "\n";
+            out << "Время анализа: " << QString::fromStdString(AdvancedAnalysis::formatDuration(m_advancedStats.analysis_duration_ms)) << "\n";
+            
+            file.close();
+            logMessage(QString("Отчет сохранен: %1").arg(fileName));
+            QMessageBox::information(this, "Отчет", "Отчет успешно сохранен");
+        } else {
+            QMessageBox::critical(this, "Ошибка", "Не удалось сохранить отчет");
+        }
+    }
+}
+
+QString ShiwaDiffPHCMainWindow::getTrendInterpretation() {
+    if (!m_hasAdvancedStats) return "Нет данных";
+    
+    const auto& trend = m_advancedStats.trend;
+    QString interpretation;
+    
+    if (trend.trend_type == "increasing") {
+        interpretation = "Обнаружен восходящий тренд. Временные различия увеличиваются со временем.";
+    } else if (trend.trend_type == "decreasing") {
+        interpretation = "Обнаружен нисходящий тренд. Временные различия уменьшаются со временем.";
+    } else {
+        interpretation = "Тренд стабильный. Временные различия не показывают значительных изменений.";
+    }
+    
+    if (trend.is_significant) {
+        interpretation += " Тренд статистически значим.";
+    } else {
+        interpretation += " Тренд не является статистически значимым.";
+    }
+    
+    return interpretation;
+}
+
+QString ShiwaDiffPHCMainWindow::getSpectralInterpretation() {
+    if (!m_hasAdvancedStats) return "Нет данных";
+    
+    const auto& spectral = m_advancedStats.spectral;
+    QString interpretation;
+    
+    if (spectral.dominant_frequency < 0.01) {
+        interpretation = "Доминируют очень низкие частоты. Система показывает медленные изменения.";
+    } else if (spectral.dominant_frequency < 0.1) {
+        interpretation = "Доминируют низкие частоты. Наблюдаются медленные колебания.";
+    } else if (spectral.dominant_frequency < 1.0) {
+        interpretation = "Доминируют средние частоты. Система показывает умеренные колебания.";
+    } else {
+        interpretation = "Доминируют высокие частоты. Наблюдаются быстрые колебания или шум.";
+    }
+    
+    return interpretation;
+}
+
+QString ShiwaDiffPHCMainWindow::getAnomalyInterpretation() {
+    if (!m_hasAdvancedStats) return "Нет данных";
+    
+    const auto& anomalies = m_advancedStats.anomalies;
+    QString interpretation;
+    
+    if (anomalies.anomaly_rate < 1.0) {
+        interpretation = "Очень низкий уровень аномалий. Система работает стабильно.";
+    } else if (anomalies.anomaly_rate < 5.0) {
+        interpretation = "Низкий уровень аномалий. Система работает нормально.";
+    } else if (anomalies.anomaly_rate < 10.0) {
+        interpretation = "Умеренный уровень аномалий. Рекомендуется мониторинг.";
+    } else {
+        interpretation = "Высокий уровень аномалий. Требуется внимание к системе.";
+    }
+    
+    return interpretation;
+}
+
+QString ShiwaDiffPHCMainWindow::formatAnomalyIndices() {
+    if (!m_hasAdvancedStats || m_advancedStats.anomalies.outlier_indices.empty()) {
+        return "Нет аномалий";
+    }
+    
+    QStringList indices;
+    for (int idx : m_advancedStats.anomalies.outlier_indices) {
+        indices << QString::number(idx);
+    }
+    
+    if (indices.size() > 10) {
+        return indices.mid(0, 10).join(", ") + "...";
+    } else {
+        return indices.join(", ");
     }
 }
 

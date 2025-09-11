@@ -37,6 +37,7 @@
 #include <vector>
 
 #include "diffphc_core.h"
+#include "advanced_analysis.h"
 
 QT_CHARTS_USE_NAMESPACE
 
@@ -65,6 +66,11 @@ private slots:
     void onZoomOut();
     void onResetZoom();
     void clearResults();
+    void onAdvancedAnalysis();
+    void onTrendAnalysis();
+    void onSpectralAnalysis();
+    void onAnomalyDetection();
+    void onGenerateReport();
 
 private:
     void setupUI();
@@ -85,6 +91,12 @@ private:
     // Drag and drop support
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
+    
+    // Advanced analysis helper methods
+    QString getTrendInterpretation();
+    QString getSpectralInterpretation();
+    QString getAnomalyInterpretation();
+    QString formatAnomalyIndices();
 
     // UI Components
     QWidget* m_centralWidget;
@@ -134,6 +146,10 @@ private:
     bool m_darkTheme;
     QChart* m_currentChart;
     QChartView* m_chartView;
+    
+    // Advanced analysis
+    AdvancedStatistics m_advancedStats;
+    bool m_hasAdvancedStats;
 };
 
 #endif // SHIWADIFFPHC_GUI_H
