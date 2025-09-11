@@ -186,7 +186,8 @@ PHCResult DiffPHCCore::measurePHCDifferences(const PHCConfig& config) {
     for (int c = 0; config.count == 0 || c < config.count; ++c) {
         int64_t baseTimestamp = getCPUNow();
         for (int d = 0; d < numDev; ++d) {
-            ts[d] = getPTPSysOffsetExtended(dev[d], config.samples);
+            int64_t now = getCPUNow();
+            ts[d] = getPTPSysOffsetExtended(dev[d], config.samples) - (now - baseTimestamp);
         }
         
         std::vector<int64_t> differences;

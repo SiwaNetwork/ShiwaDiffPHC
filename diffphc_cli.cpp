@@ -132,7 +132,18 @@ public:
             for (int i = 0; i < numDev; ++i) {
                 std::cout << "ptp" << devices[i] << "\t";
                 for (int j = 0; j <= i; ++j) {
-                    std::cout << latest[idx++] << "\t";
+                    int64_t diff = latest[idx++];
+                    if (i == j) {
+                        std::cout << "0\t";  // Same device = 0 difference
+                    } else {
+                        // Format difference in nanoseconds/microseconds
+                        if (std::abs(diff) >= 1000) {
+                            std::cout << std::fixed << std::setprecision(1) 
+                                      << (diff / 1000.0) << "μs\t";
+                        } else {
+                            std::cout << diff << "ns\t";
+                        }
+                    }
                 }
                 std::cout << "\n";
             }
@@ -154,12 +165,57 @@ public:
                 
                 const auto& stats = result.statistics[i][j];
                 std::cout << "Пара устройств ptp" << devices[i] << " - ptp" << devices[j] << ":" << std::endl;
-                std::cout << "  Медиана:           " << std::fixed << std::setprecision(1) << stats.median << " нс" << std::endl;
-                std::cout << "  Среднее:           " << std::fixed << std::setprecision(1) << stats.mean << " нс" << std::endl;
-                std::cout << "  Минимум:           " << stats.minimum << " нс" << std::endl;
-                std::cout << "  Максимум:          " << stats.maximum << " нс" << std::endl;
-                std::cout << "  Размах:            " << stats.range << " нс" << std::endl;
-                std::cout << "  Станд. отклонение: " << std::fixed << std::setprecision(1) << stats.stddev << " нс" << std::endl;
+                
+                // Format median
+                if (std::abs(stats.median) >= 1000) {
+                    std::cout << "  Медиана:           " << std::fixed << std::setprecision(1) 
+                              << (stats.median / 1000.0) << " μс" << std::endl;
+                } else {
+                    std::cout << "  Медиана:           " << std::fixed << std::setprecision(1) 
+                              << stats.median << " нс" << std::endl;
+                }
+                
+                // Format mean
+                if (std::abs(stats.mean) >= 1000) {
+                    std::cout << "  Среднее:           " << std::fixed << std::setprecision(1) 
+                              << (stats.mean / 1000.0) << " μс" << std::endl;
+                } else {
+                    std::cout << "  Среднее:           " << std::fixed << std::setprecision(1) 
+                              << stats.mean << " нс" << std::endl;
+                }
+                
+                // Format min/max
+                if (std::abs(stats.minimum) >= 1000) {
+                    std::cout << "  Минимум:           " << std::fixed << std::setprecision(1) 
+                              << (stats.minimum / 1000.0) << " μс" << std::endl;
+                } else {
+                    std::cout << "  Минимум:           " << stats.minimum << " нс" << std::endl;
+                }
+                
+                if (std::abs(stats.maximum) >= 1000) {
+                    std::cout << "  Максимум:          " << std::fixed << std::setprecision(1) 
+                              << (stats.maximum / 1000.0) << " μс" << std::endl;
+                } else {
+                    std::cout << "  Максимум:          " << stats.maximum << " нс" << std::endl;
+                }
+                
+                // Format range
+                if (stats.range >= 1000) {
+                    std::cout << "  Размах:            " << std::fixed << std::setprecision(1) 
+                              << (stats.range / 1000.0) << " μс" << std::endl;
+                } else {
+                    std::cout << "  Размах:            " << stats.range << " нс" << std::endl;
+                }
+                
+                // Format stddev
+                if (std::abs(stats.stddev) >= 1000) {
+                    std::cout << "  Станд. отклонение: " << std::fixed << std::setprecision(1) 
+                              << (stats.stddev / 1000.0) << " μс" << std::endl;
+                } else {
+                    std::cout << "  Станд. отклонение: " << std::fixed << std::setprecision(1) 
+                              << stats.stddev << " нс" << std::endl;
+                }
+                
                 std::cout << "  Измерений:         " << stats.count << std::endl;
                 std::cout << std::endl;
             }

@@ -704,7 +704,13 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
                         pointCount++;
                         
                         if (k == 0) { // Логируем только первую точку для краткости
-                            logMessage(QString("updatePlot: Added point %1 at %2").arg(value).arg(pointTime.toString("hh:mm:ss")));
+                            QString valueStr;
+                            if (std::abs(value) >= 1000) {
+                                valueStr = QString("%1 μс").arg(value / 1000.0, 0, 'f', 1);
+                            } else {
+                                valueStr = QString("%1 нс").arg(value);
+                            }
+                            logMessage(QString("updatePlot: Added point %1 at %2").arg(valueStr).arg(pointTime.toString("hh:mm:ss")));
                         }
                     }
                 }
