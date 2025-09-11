@@ -58,7 +58,7 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     m_currentConfig.samples = 10;
     m_currentConfig.debug = false;
     
-    logMessage("ShiwaDiffPHC GUI v1.3.0 инициализирован с современным интерфейсом");
+    logMessage("ShiwaDiffPHC GUI v1.6.0 инициализирован с современным интерфейсом и функционалом синхронизации");
     
     // Показываем тестовый график при запуске
     PHCResult testResult;
@@ -1325,7 +1325,17 @@ void ShiwaDiffPHCMainWindow::onShowSyncStatus() {
 }
 
 bool ShiwaDiffPHCMainWindow::syncPTPDevice(const QString& device, bool toSystemTime) {
-    QString devicePath = QString("/dev/%1").arg(device);
+    // Extract device name from full description (e.g., "PTP Device 0 (/dev/ptp0)" -> "ptp0")
+    QString deviceName = device;
+    if (device.contains("(/dev/")) {
+        int start = device.indexOf("(/dev/") + 6;
+        int end = device.indexOf(")", start);
+        if (start > 5 && end > start) {
+            deviceName = device.mid(start, end - start);
+        }
+    }
+    
+    QString devicePath = QString("/dev/%1").arg(deviceName);
     
     // Check if device exists
     if (!QFile::exists(devicePath)) {
@@ -1389,7 +1399,17 @@ bool ShiwaDiffPHCMainWindow::syncPTPDevice(const QString& device, bool toSystemT
 }
 
 QString ShiwaDiffPHCMainWindow::getPTPDeviceStatus(const QString& device) {
-    QString devicePath = QString("/dev/%1").arg(device);
+    // Extract device name from full description (e.g., "PTP Device 0 (/dev/ptp0)" -> "ptp0")
+    QString deviceName = device;
+    if (device.contains("(/dev/")) {
+        int start = device.indexOf("(/dev/") + 6;
+        int end = device.indexOf(")", start);
+        if (start > 5 && end > start) {
+            deviceName = device.mid(start, end - start);
+        }
+    }
+    
+    QString devicePath = QString("/dev/%1").arg(deviceName);
     
     if (!QFile::exists(devicePath)) {
         return "Устройство не найдено";
