@@ -14,6 +14,9 @@
 #include <QMimeData>
 #include <QFile>
 #include <QTextStream>
+#include <QProgressDialog>
+#include <QThread>
+#include <QProcess>
 
 ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -22,6 +25,8 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     , m_measuring(false)
     , m_currentIteration(0)
     , m_hasAdvancedStats(false)
+    , m_syncProcess(nullptr)
+    , m_syncStatusTimer(new QTimer(this))
 {
     setWindowTitle("ShiwaDiffPHC v1.3.0 - Анализатор различий протокола точного времени");
     setMinimumSize(1000, 700);
@@ -41,6 +46,11 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     updateDeviceList();
     
     connect(m_measurementTimer, &QTimer::timeout, this, &ShiwaDiffPHCMainWindow::onTimerUpdate);
+    
+    // Initialize sync status timer
+    connect(m_syncStatusTimer, &QTimer::timeout, this, &ShiwaDiffPHCMainWindow::updateSyncStatus);
+    m_syncStatusTimer->setInterval(5000); // Update every 5 seconds
+    m_syncStatusTimer->start();
     
     // Initialize configuration
     m_currentConfig.count = 0;
@@ -141,6 +151,23 @@ void ShiwaDiffPHCMainWindow::setupMenuBar() {
     auto* clearResultsAction = toolsMenu->addAction("&Clear Results");
     clearResultsAction->setShortcut(QKeySequence("Ctrl+Delete"));
     connect(clearResultsAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::clearResults);
+    
+    // Synchronization Menu
+    auto* syncMenu = menuBar()->addMenu("&Synchronization");
+    
+    auto* syncPTPAction = syncMenu->addAction("Sync &PTP Devices");
+    syncPTPAction->setShortcut(QKeySequence("Ctrl+Shift+S"));
+    connect(syncPTPAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onSyncPTPDevices);
+    
+    auto* syncSystemAction = syncMenu->addAction("Sync &System Time");
+    syncSystemAction->setShortcut(QKeySequence("Ctrl+Shift+T"));
+    connect(syncSystemAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onSyncSystemTime);
+    
+    syncMenu->addSeparator();
+    
+    auto* syncStatusAction = syncMenu->addAction("Show Sync &Status");
+    syncStatusAction->setShortcut(QKeySequence("Ctrl+Shift+I"));
+    connect(syncStatusAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onShowSyncStatus);
     
     // Analysis Menu
     auto* analysisMenu = menuBar()->addMenu("&Analysis");
@@ -1184,6 +1211,225 @@ QString ShiwaDiffPHCMainWindow::formatAnomalyIndices() {
     } else {
         return indices.join(", ");
     }
+}
+
+// PTP Synchronization Methods
+void ShiwaDiffPHCMainWindow::onSyncPTPDevices() {
+    logMessage("Запуск синхронизации PTP устройств...");
+    
+    // Get selected devices
+    QStringList selectedDevices;
+    for (int i = 0; i < 8; ++i) {
+        if (m_deviceCheckBoxes[i] && m_deviceCheckBoxes[i]->isChecked()) {
+            selectedDevices << m_deviceCheckBoxes[i]->text();
+        }
+    }
+    
+    if (selectedDevices.isEmpty()) {
+        QMessageBox::warning(this, "Предупреждение", "Выберите PTP устройства для синхронизации.");
+        return;
+    }
+    
+    // Show progress dialog
+    QProgressDialog progress("Синхронизация PTP устройств...", "Отмена", 0, selectedDevices.size(), this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.show();
+    
+    int successCount = 0;
+    for (int i = 0; i < selectedDevices.size(); ++i) {
+        if (progress.wasCanceled()) break;
+        
+        progress.setValue(i);
+        progress.setLabelText(QString("Синхронизация %1...").arg(selectedDevices[i]));
+        QApplication::processEvents();
+        
+        if (syncPTPDevice(selectedDevices[i], true)) {
+            successCount++;
+            logMessage(QString("Устройство %1 успешно синхронизировано").arg(selectedDevices[i]));
+        } else {
+            logMessage(QString("Ошибка синхронизации устройства %1").arg(selectedDevices[i]));
+        }
+        
+        // Small delay between syncs
+        QThread::msleep(1000);
+    }
+    
+    progress.setValue(selectedDevices.size());
+    
+    QMessageBox::information(this, "Синхронизация завершена", 
+                           QString("Синхронизировано %1 из %2 устройств.")
+                           .arg(successCount).arg(selectedDevices.size()));
+    
+    // Update sync status
+    updateSyncStatus();
+}
+
+void ShiwaDiffPHCMainWindow::onSyncSystemTime() {
+    logMessage("Запуск синхронизации системного времени...");
+    
+    // Get selected devices
+    QStringList selectedDevices;
+    for (int i = 0; i < 8; ++i) {
+        if (m_deviceCheckBoxes[i] && m_deviceCheckBoxes[i]->isChecked()) {
+            selectedDevices << m_deviceCheckBoxes[i]->text();
+        }
+    }
+    
+    if (selectedDevices.isEmpty()) {
+        QMessageBox::warning(this, "Предупреждение", "Выберите PTP устройство для синхронизации системного времени.");
+        return;
+    }
+    
+    if (selectedDevices.size() > 1) {
+        QMessageBox::warning(this, "Предупреждение", "Выберите только одно PTP устройство для синхронизации системного времени.");
+        return;
+    }
+    
+    QString device = selectedDevices.first();
+    
+    QMessageBox::StandardButton reply = QMessageBox::question(this, "Подтверждение", 
+        QString("Синхронизировать системное время с устройством %1?\n\n"
+               "Это изменит системное время компьютера.").arg(device),
+        QMessageBox::Yes | QMessageBox::No);
+    
+    if (reply == QMessageBox::Yes) {
+        if (syncPTPDevice(device, false)) {
+            QMessageBox::information(this, "Успех", "Системное время успешно синхронизировано с PTP устройством.");
+            logMessage(QString("Системное время синхронизировано с %1").arg(device));
+        } else {
+            QMessageBox::critical(this, "Ошибка", "Не удалось синхронизировать системное время.");
+            logMessage(QString("Ошибка синхронизации системного времени с %1").arg(device));
+        }
+    }
+}
+
+void ShiwaDiffPHCMainWindow::onShowSyncStatus() {
+    updateSyncStatus();
+    
+    QString statusText = "=== СТАТУС СИНХРОНИЗАЦИИ PTP УСТРОЙСТВ ===\n\n";
+    
+    for (int i = 0; i < 8; ++i) {
+        if (m_deviceCheckBoxes[i] && m_deviceCheckBoxes[i]->isVisible()) {
+            QString device = m_deviceCheckBoxes[i]->text();
+            QString status = m_deviceSyncStatus.value(device, "Неизвестно");
+            statusText += QString("%1: %2\n").arg(device).arg(status);
+        }
+    }
+    
+    statusText += "\n=== РЕКОМЕНДАЦИИ ===\n";
+    statusText += "• Для точных измерений рекомендуется синхронизировать все PTP устройства\n";
+    statusText += "• Используйте 'Sync PTP Devices' для синхронизации с системным временем\n";
+    statusText += "• Используйте 'Sync System Time' для синхронизации системного времени с PTP\n";
+    
+    QMessageBox::information(this, "Статус синхронизации", statusText);
+}
+
+bool ShiwaDiffPHCMainWindow::syncPTPDevice(const QString& device, bool toSystemTime) {
+    QString devicePath = QString("/dev/%1").arg(device);
+    
+    // Check if device exists
+    if (!QFile::exists(devicePath)) {
+        logMessage(QString("Устройство %1 не найдено").arg(devicePath));
+        return false;
+    }
+    
+    QStringList arguments;
+    if (toSystemTime) {
+        // Sync PTP device to system time
+        arguments << "-s" << "CLOCK_REALTIME" << "-c" << devicePath << "-O" << "0" << "-m" << "-l" << "6";
+    } else {
+        // Sync system time to PTP device
+        arguments << "-s" << devicePath << "-c" << "CLOCK_REALTIME" << "-O" << "0" << "-m" << "-l" << "6";
+    }
+    
+    // Start phc2sys process
+    if (m_syncProcess) {
+        m_syncProcess->kill();
+        m_syncProcess->deleteLater();
+    }
+    
+    m_syncProcess = new QProcess(this);
+    m_syncProcess->setProgram("phc2sys");
+    m_syncProcess->setArguments(arguments);
+    
+    // Connect signals
+    connect(m_syncProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            [this, device, toSystemTime](int exitCode, QProcess::ExitStatus exitStatus) {
+                if (exitCode == 0) {
+                    logMessage(QString("Синхронизация %1 завершена успешно").arg(device));
+                    m_deviceSyncStatus[device] = toSystemTime ? "Синхронизирован с системой" : "Система синхронизирована";
+                } else {
+                    logMessage(QString("Ошибка синхронизации %1 (код: %2)").arg(device).arg(exitCode));
+                    m_deviceSyncStatus[device] = "Ошибка синхронизации";
+                }
+            });
+    
+    connect(m_syncProcess, &QProcess::errorOccurred,
+            [this, device](QProcess::ProcessError error) {
+                logMessage(QString("Ошибка процесса синхронизации %1: %2").arg(device).arg(error));
+                m_deviceSyncStatus[device] = "Ошибка процесса";
+            });
+    
+    // Start the process
+    m_syncProcess->start();
+    
+    if (!m_syncProcess->waitForStarted(5000)) {
+        logMessage(QString("Не удалось запустить phc2sys для %1").arg(device));
+        return false;
+    }
+    
+    // Wait for completion (with timeout)
+    if (!m_syncProcess->waitForFinished(30000)) { // 30 second timeout
+        logMessage(QString("Таймаут синхронизации %1").arg(device));
+        m_syncProcess->kill();
+        return false;
+    }
+    
+    return m_syncProcess->exitCode() == 0;
+}
+
+QString ShiwaDiffPHCMainWindow::getPTPDeviceStatus(const QString& device) {
+    QString devicePath = QString("/dev/%1").arg(device);
+    
+    if (!QFile::exists(devicePath)) {
+        return "Устройство не найдено";
+    }
+    
+    // Try to get basic device info
+    QProcess process;
+    process.setProgram("phc2sys");
+    process.setArguments({"-s", "CLOCK_REALTIME", "-c", devicePath, "-O", "0", "-m", "-l", "1"});
+    
+    process.start();
+    if (!process.waitForFinished(5000)) {
+        return "Недоступен";
+    }
+    
+    if (process.exitCode() == 0) {
+        return "Доступен";
+    } else {
+        return "Ошибка доступа";
+    }
+}
+
+void ShiwaDiffPHCMainWindow::updateSyncStatus() {
+    for (int i = 0; i < 8; ++i) {
+        if (m_deviceCheckBoxes[i] && m_deviceCheckBoxes[i]->isVisible()) {
+            QString device = m_deviceCheckBoxes[i]->text();
+            QString status = getPTPDeviceStatus(device);
+            m_deviceSyncStatus[device] = status;
+        }
+    }
+    
+    // Update status bar
+    QString statusText = "PTP устройства: ";
+    QStringList statusList;
+    for (auto it = m_deviceSyncStatus.begin(); it != m_deviceSyncStatus.end(); ++it) {
+        statusList << QString("%1(%2)").arg(it.key()).arg(it.value());
+    }
+    statusText += statusList.join(", ");
+    
+    statusBar()->showMessage(statusText);
 }
 
 // Main function for GUI application

@@ -18,6 +18,8 @@
 #include <QTimer>
 #include <QStatusBar>
 #include <QMenuBar>
+#include <QProcess>
+#include <QMap>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QSplitter>
@@ -71,6 +73,11 @@ private slots:
     void onSpectralAnalysis();
     void onAnomalyDetection();
     void onGenerateReport();
+    
+    // PTP Synchronization slots
+    void onSyncPTPDevices();
+    void onSyncSystemTime();
+    void onShowSyncStatus();
 
 private:
     void setupUI();
@@ -97,6 +104,11 @@ private:
     QString getSpectralInterpretation();
     QString getAnomalyInterpretation();
     QString formatAnomalyIndices();
+    
+    // PTP Synchronization helper methods
+    bool syncPTPDevice(const QString& device, bool toSystemTime = true);
+    QString getPTPDeviceStatus(const QString& device);
+    void updateSyncStatus();
 
     // UI Components
     QWidget* m_centralWidget;
@@ -150,6 +162,11 @@ private:
     // Advanced analysis
     AdvancedStatistics m_advancedStats;
     bool m_hasAdvancedStats;
+    
+    // PTP Synchronization
+    QProcess* m_syncProcess;
+    QTimer* m_syncStatusTimer;
+    QMap<QString, QString> m_deviceSyncStatus;
 };
 
 #endif // SHIWADIFFPHC_GUI_H

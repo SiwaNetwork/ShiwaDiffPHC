@@ -80,9 +80,9 @@ int main() {
         return 1;
     }
     
-    int fd1 = open("/dev/ptp1", O_RDONLY);
+    int fd1 = open("/dev/ptp2", O_RDONLY);  // Используем PTP2 вместо PTP1
     if (fd1 < 0) {
-        std::cerr << "Cannot open /dev/ptp1" << std::endl;
+        std::cerr << "Cannot open /dev/ptp2" << std::endl;
         close(fd0);
         return 1;
     }
@@ -91,9 +91,19 @@ int main() {
     int64_t ptp1_time = getPTPSysOffsetExtended(fd1, 10);
     
     std::cout << "PTP0 time: " << ptp0_time << " ns" << std::endl;
-    std::cout << "PTP1 time: " << ptp1_time << " ns" << std::endl;
-    std::cout << "Difference: " << (ptp1_time - ptp0_time) << " ns" << std::endl;
-    std::cout << "Difference: " << ((ptp1_time - ptp0_time) / 1000.0) << " μs" << std::endl;
+    std::cout << "PTP2 time: " << ptp1_time << " ns" << std::endl;
+    
+    int64_t diff_ns = ptp1_time - ptp0_time;
+    std::cout << "\n=== АНАЛИЗ РАЗНОСТИ ===" << std::endl;
+    std::cout << "Разность: " << diff_ns << " наносекунд" << std::endl;
+    std::cout << "Разность: " << (diff_ns / 1000.0) << " микросекунд" << std::endl;
+    std::cout << "Разность: " << (diff_ns / 1000000.0) << " миллисекунд" << std::endl;
+    std::cout << "Разность: " << (diff_ns / 1000000000.0) << " секунд" << std::endl;
+    
+    // Проверим, что это действительно наносекунды
+    std::cout << "\n=== ПРОВЕРКА ЕДИНИЦ ===" << std::endl;
+    std::cout << "Системное время: " << getCPUNow() << " ns" << std::endl;
+    std::cout << "Системное время: " << (getCPUNow() / 1000000000.0) << " секунд с эпохи" << std::endl;
     
     close(fd0);
     close(fd1);
