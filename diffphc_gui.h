@@ -28,6 +28,7 @@
 #include <QPlainTextEdit>
 #include <QChart>
 #include <QChartView>
+#include <QStringConverter>
 #include <QLineSeries>
 #include <QBarSeries>
 #include <QBarSet>
@@ -41,7 +42,6 @@
 #include "diffphc_core.h"
 #include "advanced_analysis.h"
 
-QT_CHARTS_USE_NAMESPACE
 
 class ShiwaDiffPHCMainWindow : public QMainWindow {
     Q_OBJECT
