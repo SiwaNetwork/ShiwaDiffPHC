@@ -78,6 +78,7 @@ private slots:
     void onSyncPTPDevices();
     void onSyncSystemTime();
     void onShowSyncStatus();
+    void onShowTestData();
 
 private:
     void setupUI();

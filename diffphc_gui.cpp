@@ -17,6 +17,8 @@
 #include <QProgressDialog>
 #include <QThread>
 #include <QProcess>
+#include <cmath>
+#include <algorithm>
 
 ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -28,9 +30,9 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     , m_syncProcess(nullptr)
     , m_syncStatusTimer(new QTimer(this))
 {
-    setWindowTitle("ShiwaDiffPHC v1.3.0 - Анализатор различий протокола точного времени");
-    setMinimumSize(1000, 700);
-    resize(1400, 900);
+    setWindowTitle("ShiwaDiffPHC v1.6.0 - Анализатор различий протокола точного времени");
+    setMinimumSize(1200, 800);
+    resize(1600, 1000);
     
     // Apply modern dark theme
     applyDarkTheme();
@@ -47,10 +49,10 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     
     connect(m_measurementTimer, &QTimer::timeout, this, &ShiwaDiffPHCMainWindow::onTimerUpdate);
     
-    // Initialize sync status timer
-    connect(m_syncStatusTimer, &QTimer::timeout, this, &ShiwaDiffPHCMainWindow::updateSyncStatus);
-    m_syncStatusTimer->setInterval(5000); // Update every 5 seconds
-    m_syncStatusTimer->start();
+    // Initialize sync status timer (disabled to prevent GUI freezing)
+    // connect(m_syncStatusTimer, &QTimer::timeout, this, &ShiwaDiffPHCMainWindow::updateSyncStatus);
+    // m_syncStatusTimer->setInterval(5000); // Update every 5 seconds
+    // m_syncStatusTimer->start();
     
     // Initialize configuration
     m_currentConfig.count = 0;
@@ -266,6 +268,7 @@ void ShiwaDiffPHCMainWindow::setupControlPanel() {
     m_stopButton = new QPushButton("Stop Measurement");
     m_saveButton = new QPushButton("Save Results");
     m_clearButton = new QPushButton("Clear Results");
+    QPushButton* m_testButton = new QPushButton("Show Test Data");
     
     m_startButton->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; }");
     m_stopButton->setStyleSheet("QPushButton { background-color: #f44336; color: white; font-weight: bold; }");
@@ -275,11 +278,13 @@ void ShiwaDiffPHCMainWindow::setupControlPanel() {
     controlButtonLayout->addWidget(m_stopButton);
     controlButtonLayout->addWidget(m_saveButton);
     controlButtonLayout->addWidget(m_clearButton);
+    controlButtonLayout->addWidget(m_testButton);
     
     connect(m_startButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onStartMeasurement);
     connect(m_stopButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onStopMeasurement);
     connect(m_saveButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onSaveResults);
     connect(m_clearButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::clearResults);
+    connect(m_testButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onShowTestData);
     connect(m_refreshButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onRefreshDevices);
     connect(m_infoButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onShowDeviceInfo);
     
@@ -301,9 +306,13 @@ void ShiwaDiffPHCMainWindow::setupResultsPanel() {
     m_resultsTable = new QTableWidget;
     m_resultsTable->setAlternatingRowColors(true);
     m_resultsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_resultsTable->setWordWrap(false);
+    m_resultsTable->setTextElideMode(Qt::ElideRight);
+    m_resultsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    m_resultsTable->horizontalHeader()->setStretchLastSection(true);
     resultsLayout->addWidget(m_resultsTable);
     
-    m_tabWidget->addTab(resultsWidget, "Таблица результатов");
+    m_tabWidget->addTab(resultsWidget, "📊 Результаты");
     
     // Statistics Table Tab
     auto* statisticsWidget = new QWidget;
@@ -312,9 +321,13 @@ void ShiwaDiffPHCMainWindow::setupResultsPanel() {
     m_statisticsTable = new QTableWidget;
     m_statisticsTable->setAlternatingRowColors(true);
     m_statisticsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_statisticsTable->setWordWrap(false);
+    m_statisticsTable->setTextElideMode(Qt::ElideRight);
+    m_statisticsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    m_statisticsTable->horizontalHeader()->setStretchLastSection(true);
     statisticsLayout->addWidget(m_statisticsTable);
     
-    m_tabWidget->addTab(statisticsWidget, "Статистический анализ");
+    m_tabWidget->addTab(statisticsWidget, "📈 Статистика");
     
     // Plot Tab (real charts) - Enhanced interactive chart
     m_plotWidget = new QChartView;
@@ -335,21 +348,21 @@ void ShiwaDiffPHCMainWindow::setupResultsPanel() {
     initialChart->addSeries(placeholderSeries);
     
     m_plotWidget->setChart(initialChart);
-    m_tabWidget->addTab(m_plotWidget, "Графики");
+    m_tabWidget->addTab(m_plotWidget, "📈 Графики");
     
     // Log Tab
     m_logTextEdit = new QPlainTextEdit;
     m_logTextEdit->setReadOnly(true);
     m_logTextEdit->setMaximumBlockCount(1000); // Limit log size
-    m_tabWidget->addTab(m_logTextEdit, "Log");
+    m_tabWidget->addTab(m_logTextEdit, "📝 Лог");
     
     m_mainSplitter->addWidget(m_tabWidget);
-    m_mainSplitter->setSizes({300, 700}); // 30% control panel, 70% results
+    m_mainSplitter->setSizes({350, 1250}); // 22% control panel, 78% results
 }
 
 void ShiwaDiffPHCMainWindow::setupStatusBar() {
-    m_statusLabel = new QLabel("Ready");
-    m_deviceCountLabel = new QLabel("Devices: 0");
+    m_statusLabel = new QLabel("Готов");
+    m_deviceCountLabel = new QLabel("Устройств: 0");
     m_progressBar = new QProgressBar;
     m_progressBar->setVisible(false);
     
@@ -428,14 +441,21 @@ void ShiwaDiffPHCMainWindow::onStopMeasurement() {
 
 void ShiwaDiffPHCMainWindow::onTimerUpdate() {
     if (!m_measuring) {
+        logMessage("onTimerUpdate: Not measuring, skipping");
         return;
     }
+    
+    logMessage(QString("onTimerUpdate: Starting measurement iteration %1").arg(m_currentIteration + 1));
     
     // Perform single measurement
     PHCConfig singleConfig = m_currentConfig;
     singleConfig.count = 1; // Single measurement
     
+    logMessage(QString("onTimerUpdate: Config - devices: %1, delay: %2, samples: %3").arg(singleConfig.devices.size()).arg(singleConfig.delay).arg(singleConfig.samples));
+    
     PHCResult result = DiffPHCCore::measurePHCDifferences(singleConfig);
+    
+    logMessage(QString("onTimerUpdate: Measurement result - success: %1, differences size: %2, devices size: %3").arg(result.success).arg(result.differences.size()).arg(result.devices.size()));
     
     if (result.success) {
         m_results.push_back(result);
@@ -453,7 +473,7 @@ void ShiwaDiffPHCMainWindow::onTimerUpdate() {
             }
         }
         
-        logMessage(QString("Iteration %1 completed").arg(m_currentIteration));
+        logMessage(QString("Iteration %1 completed successfully").arg(m_currentIteration));
     } else {
         logMessage(QString("Measurement error: %1").arg(QString::fromStdString(result.error)));
         onStopMeasurement();
@@ -469,11 +489,11 @@ void ShiwaDiffPHCMainWindow::updateResultsTable(const PHCResult& result) {
     // Setup table headers if needed
     if (m_resultsTable->columnCount() == 0) {
         QStringList headers;
-        headers << "Iteration" << "Timestamp";
+        headers << "Итерация" << "Время";
         
         for (int i = 0; i < numDev; ++i) {
             for (int j = 0; j <= i; ++j) {
-                headers << QString("ptp%1-ptp%2").arg(devices[i]).arg(devices[j]);
+                headers << QString("PTP%1-PTP%2").arg(devices[i]).arg(devices[j]);
             }
         }
         
@@ -487,11 +507,22 @@ void ShiwaDiffPHCMainWindow::updateResultsTable(const PHCResult& result) {
     m_resultsTable->insertRow(row);
     
     m_resultsTable->setItem(row, 0, new QTableWidgetItem(QString::number(m_currentIteration)));
-    m_resultsTable->setItem(row, 1, new QTableWidgetItem(QString::number(result.baseTimestamp)));
+    
+    // Форматируем время в читаемом виде
+    QDateTime timestamp = QDateTime::fromMSecsSinceEpoch(result.baseTimestamp / 1000000);
+    m_resultsTable->setItem(row, 1, new QTableWidgetItem(timestamp.toString("hh:mm:ss.zzz")));
     
     const auto& latest = result.differences.back();
     for (size_t i = 0; i < latest.size(); ++i) {
-        m_resultsTable->setItem(row, i + 2, new QTableWidgetItem(QString::number(latest[i])));
+        // Форматируем значения в микросекундах для лучшей читаемости
+        QString valueStr;
+        int64_t value = latest[i];
+        if (std::abs(value) >= 1000) {
+            valueStr = QString("%1 μс").arg(value / 1000.0, 0, 'f', 1);
+        } else {
+            valueStr = QString("%1 нс").arg(value);
+        }
+        m_resultsTable->setItem(row, i + 2, new QTableWidgetItem(valueStr));
     }
     
     // Scroll to bottom
@@ -499,19 +530,24 @@ void ShiwaDiffPHCMainWindow::updateResultsTable(const PHCResult& result) {
 }
 
 void ShiwaDiffPHCMainWindow::updateStatisticsTable(const PHCResult& result) {
-    if (!result.success || result.statistics.empty() || result.differences.size() < 2) {
+    if (!result.success || m_results.empty()) {
         return;
     }
     
     const auto& devices = result.devices;
     const int numDev = devices.size();
     
+    // Рассчитываем статистику на основе всех накопленных результатов
+    if (m_results.size() < 2) {
+        return; // Нужно минимум 2 измерения для статистики
+    }
+    
     // Setup table headers if needed
     if (m_statisticsTable->columnCount() == 0) {
         QStringList headers;
-        headers << "Пара устройств" << "Медиана (нс)" << "Среднее (нс)" 
-                << "Минимум (нс)" << "Максимум (нс)" << "Размах (нс)" 
-                << "Станд. откл. (нс)" << "Измерений";
+        headers << "Устройства" << "Медиана" << "Среднее" 
+                << "Мин" << "Макс" << "Размах" 
+                << "Стд.откл" << "Кол-во";
         
         m_statisticsTable->setColumnCount(headers.size());
         m_statisticsTable->setHorizontalHeaderLabels(headers);
@@ -527,30 +563,84 @@ void ShiwaDiffPHCMainWindow::updateStatisticsTable(const PHCResult& result) {
         m_statisticsTable->setRowCount(pairCount);
     }
     
+    // Собираем все данные для каждой пары устройств
+    std::vector<std::vector<std::vector<int64_t>>> pairData(numDev);
+    for (int i = 0; i < numDev; ++i) {
+        pairData[i].resize(i + 1);
+    }
+    
+    // Заполняем данные из всех накопленных результатов
+    for (const auto& res : m_results) {
+        if (!res.success || res.differences.empty()) continue;
+        
+        int idx = 0;
+        for (int i = 0; i < numDev; ++i) {
+            for (int j = 0; j <= i; ++j) {
+                if (idx < res.differences[0].size()) {
+                    pairData[i][j].push_back(res.differences[0][idx]);
+                }
+                idx++;
+            }
+        }
+    }
+    
     // Fill data
     int row = 0;
     for (int i = 0; i < numDev; ++i) {
         for (int j = 0; j <= i; ++j) {
             if (i == j) continue; // Skip diagonal
             
-            const auto& stats = result.statistics[i][j];
+            // Рассчитываем статистику для этой пары устройств
+            const auto& values = pairData[i][j];
+            if (values.empty()) continue;
+            
+            // Сортируем для медианы
+            std::vector<int64_t> sortedValues = values;
+            std::sort(sortedValues.begin(), sortedValues.end());
+            
+            // Рассчитываем статистику
+            double mean = 0;
+            for (int64_t val : values) {
+                mean += val;
+            }
+            mean /= values.size();
+            
+            double median = (values.size() % 2 == 0) 
+                ? (sortedValues[values.size()/2 - 1] + sortedValues[values.size()/2]) / 2.0
+                : sortedValues[values.size()/2];
+            
+            int64_t min = *std::min_element(values.begin(), values.end());
+            int64_t max = *std::max_element(values.begin(), values.end());
+            int64_t range = max - min;
+            
+            // Стандартное отклонение
+            double variance = 0;
+            for (int64_t val : values) {
+                variance += (val - mean) * (val - mean);
+            }
+            variance /= values.size();
+            double stddev = std::sqrt(variance);
             
             m_statisticsTable->setItem(row, 0, new QTableWidgetItem(
-                QString("ptp%1 - ptp%2").arg(devices[i]).arg(devices[j])));
-            m_statisticsTable->setItem(row, 1, new QTableWidgetItem(
-                QString::number(stats.median, 'f', 1)));
-            m_statisticsTable->setItem(row, 2, new QTableWidgetItem(
-                QString::number(stats.mean, 'f', 1)));
-            m_statisticsTable->setItem(row, 3, new QTableWidgetItem(
-                QString::number(stats.minimum)));
-            m_statisticsTable->setItem(row, 4, new QTableWidgetItem(
-                QString::number(stats.maximum)));
-            m_statisticsTable->setItem(row, 5, new QTableWidgetItem(
-                QString::number(stats.range)));
-            m_statisticsTable->setItem(row, 6, new QTableWidgetItem(
-                QString::number(stats.stddev, 'f', 1)));
+                QString("PTP%1-PTP%2").arg(devices[i]).arg(devices[j])));
+            
+            // Форматируем значения в микросекундах для лучшей читаемости
+            auto formatValue = [](double value) -> QString {
+                if (std::abs(value) >= 1000) {
+                    return QString("%1 μс").arg(value / 1000.0, 0, 'f', 1);
+                } else {
+                    return QString("%1 нс").arg(value, 0, 'f', 1);
+                }
+            };
+            
+            m_statisticsTable->setItem(row, 1, new QTableWidgetItem(formatValue(median)));
+            m_statisticsTable->setItem(row, 2, new QTableWidgetItem(formatValue(mean)));
+            m_statisticsTable->setItem(row, 3, new QTableWidgetItem(formatValue(min)));
+            m_statisticsTable->setItem(row, 4, new QTableWidgetItem(formatValue(max)));
+            m_statisticsTable->setItem(row, 5, new QTableWidgetItem(formatValue(range)));
+            m_statisticsTable->setItem(row, 6, new QTableWidgetItem(formatValue(stddev)));
             m_statisticsTable->setItem(row, 7, new QTableWidgetItem(
-                QString::number(stats.count)));
+                QString::number(values.size())));
             
             row++;
         }
@@ -569,9 +659,9 @@ void ShiwaDiffPHCMainWindow::onDeviceSelectionChanged() {
     m_startButton->setEnabled(selectedCount >= 2);
     
     if (selectedCount < 2) {
-        m_statusLabel->setText("Select at least 2 devices");
+        m_statusLabel->setText("Выберите минимум 2 устройства");
     } else {
-        m_statusLabel->setText("Ready");
+        m_statusLabel->setText("Готов к измерению");
     }
 }
 
@@ -681,28 +771,75 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
     // Добавляем отладочную информацию
     logMessage(QString("updatePlot called - success: %1, differences size: %2").arg(result.success).arg(result.differences.size()));
     
-    // Создаем интерактивный график
-    QChart* chart = new QChart();
-    chart->setTitle("📊 Интерактивная визуализация различий PTP устройств");
-    chart->setAnimationOptions(QChart::SeriesAnimations);
-    chart->setTheme(m_darkTheme ? QChart::ChartThemeDark : QChart::ChartThemeLight);
+    // Получаем существующий график или создаем новый
+    QChart* chart = m_plotWidget->chart();
+    QDateTimeAxis* timeAxis = nullptr;
+    QValueAxis* valueAxis = nullptr;
     
-    // Настройка интерактивности
-    chart->setAcceptHoverEvents(true);
+    if (!chart) {
+        chart = new QChart();
+        chart->setTitle("📊 Интерактивная визуализация различий PTP устройств");
+        chart->setAnimationOptions(QChart::SeriesAnimations);
+        chart->setTheme(m_darkTheme ? QChart::ChartThemeDark : QChart::ChartThemeLight);
+        chart->setAcceptHoverEvents(true);
+        
+        // Создаем временную ось
+        timeAxis = new QDateTimeAxis;
+        timeAxis->setTitleText("Время");
+        timeAxis->setFormat("hh:mm:ss");
+        chart->addAxis(timeAxis, Qt::AlignBottom);
 
-    // Создаем временную ось
-    QDateTimeAxis* timeAxis = new QDateTimeAxis;
-    timeAxis->setTitleText("Время");
-    timeAxis->setFormat("hh:mm:ss");
-    chart->addAxis(timeAxis, Qt::AlignBottom);
-
-    // Создаем ось значений
-    QValueAxis* valueAxis = new QValueAxis;
-    valueAxis->setTitleText("Различие (нс)");
-    chart->addAxis(valueAxis, Qt::AlignLeft);
+        // Создаем ось значений
+        valueAxis = new QValueAxis;
+        valueAxis->setTitleText("Различие (нс)");
+        valueAxis->setRange(-1000000, 1000000); // Устанавливаем диапазон ±1мс
+        valueAxis->setTickCount(11);
+        chart->addAxis(valueAxis, Qt::AlignLeft);
+        
+        m_plotWidget->setChart(chart);
+    } else {
+        // Получаем существующие оси
+        timeAxis = qobject_cast<QDateTimeAxis*>(chart->axisX());
+        valueAxis = qobject_cast<QValueAxis*>(chart->axisY());
+        
+        // Если оси не найдены, создаем новые
+        if (!timeAxis) {
+            timeAxis = new QDateTimeAxis;
+            timeAxis->setTitleText("Время");
+            timeAxis->setFormat("hh:mm:ss");
+            chart->addAxis(timeAxis, Qt::AlignBottom);
+        }
+        
+        if (!valueAxis) {
+            valueAxis = new QValueAxis;
+            valueAxis->setTitleText("Различие (нс)");
+            valueAxis->setRange(-1000000, 1000000);
+            valueAxis->setTickCount(11);
+            chart->addAxis(valueAxis, Qt::AlignLeft);
+        }
+    }
 
     if (result.success && !result.differences.empty()) {
         logMessage(QString("updatePlot: Creating chart with %1 devices").arg(result.devices.size()));
+        
+        // Check for unsynchronized devices
+        bool hasUnsyncDevices = false;
+        for (size_t i = 0; i < result.devices.size(); ++i) {
+            for (size_t j = i + 1; j < result.devices.size(); ++j) {
+                size_t idx = i * result.devices.size() + j;
+                if (idx < result.differences[0].size()) {
+                    qint64 value = result.differences[0][idx];
+                    if (std::abs(value) > 1000000000LL) { // More than 1 second
+                        hasUnsyncDevices = true;
+                        logMessage(QString("⚠️ PTP Device %1 may be unsynchronized (difference: %2 ns)").arg(result.devices[i]).arg(value));
+                    }
+                }
+            }
+        }
+        
+        if (hasUnsyncDevices) {
+            logMessage("💡 Рекомендация: Используйте меню 'Synchronization' → 'Sync PTP Devices' для синхронизации");
+        }
 
         // Создаем серии для каждой пары устройств
         const auto& devices = result.devices;
@@ -710,43 +847,67 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
         
         logMessage(QString("updatePlot: Base time: %1").arg(baseTime.toString("hh:mm:ss")));
         
+        // Очищаем старые серии только если это первое измерение
+        if (m_currentIteration == 1) {
+            chart->removeAllSeries();
+            logMessage("updatePlot: Cleared old series for first measurement");
+        }
+        
+        // Создаем или обновляем серии для каждой пары устройств
         int seriesCount = 0;
         for (size_t i = 0; i < devices.size(); ++i) {
             for (size_t j = i + 1; j < devices.size(); ++j) {
-                QLineSeries* series = new QLineSeries();
                 QString seriesName = QString("ptp%1 - ptp%2").arg(devices[i]).arg(devices[j]);
-                series->setName(seriesName);
                 
-                logMessage(QString("updatePlot: Creating series %1").arg(seriesName));
+                // Ищем существующую серию или создаем новую
+                QLineSeries* series = nullptr;
+                for (QAbstractSeries* existingSeries : chart->series()) {
+                    if (existingSeries->name() == seriesName) {
+                        series = qobject_cast<QLineSeries*>(existingSeries);
+                        break;
+                    }
+                }
                 
-                // Добавляем точки для каждого измерения
-                int pointCount = 0;
-                for (size_t k = 0; k < result.differences.size(); ++k) {
-                    const auto& measurement = result.differences[k];
+                if (!series) {
+                    series = new QLineSeries();
+                    series->setName(seriesName);
+                    chart->addSeries(series);
+                    if (timeAxis) series->attachAxis(timeAxis);
+                    if (valueAxis) series->attachAxis(valueAxis);
+                    logMessage(QString("updatePlot: Created new series %1").arg(seriesName));
+                }
+                
+                // Добавляем новую точку к существующей серии
+                if (!result.differences.empty()) {
+                    const auto& latestMeasurement = result.differences.back();
                     size_t idx = i * devices.size() + j;
-                    if (idx < measurement.size()) {
-                        QDateTime pointTime = baseTime.addMSecs(k * 100); // Примерное время
-                        qint64 value = measurement[idx];
-                        series->append(pointTime.toMSecsSinceEpoch(), value);
-                        pointCount++;
+                    if (idx < latestMeasurement.size()) {
+                        QDateTime pointTime = QDateTime::currentDateTime();
+                        qint64 value = latestMeasurement[idx];
                         
-                        if (k == 0) { // Логируем только первую точку для краткости
+                        // Filter out unreasonable values (more than 1 second difference)
+                        const int64_t MAX_REASONABLE_DIFF_NS = 1000000000LL; // 1 second in nanoseconds
+                        if (std::abs(value) <= MAX_REASONABLE_DIFF_NS) {
+                            series->append(pointTime.toMSecsSinceEpoch(), value);
+                            
+                            // Принудительно обновляем диапазон осей
+                            if (timeAxis) {
+                                timeAxis->setRange(pointTime.addSecs(-60), pointTime.addSecs(10));
+                            }
+                            
                             QString valueStr;
                             if (std::abs(value) >= 1000) {
                                 valueStr = QString("%1 μс").arg(value / 1000.0, 0, 'f', 1);
                             } else {
                                 valueStr = QString("%1 нс").arg(value);
                             }
-                            logMessage(QString("updatePlot: Added point %1 at %2").arg(valueStr).arg(pointTime.toString("hh:mm:ss")));
+                            logMessage(QString("updatePlot: Added point %1 to series %2 at %3").arg(valueStr).arg(seriesName).arg(pointTime.toString("hh:mm:ss")));
+                        } else {
+                            logMessage(QString("updatePlot: Skipping unreasonable value %1 ns for series %2").arg(value).arg(seriesName));
                         }
                     }
                 }
                 
-                logMessage(QString("updatePlot: Series %1 has %2 points").arg(seriesName).arg(pointCount));
-                
-                chart->addSeries(series);
-                series->attachAxis(timeAxis);
-                series->attachAxis(valueAxis);
                 seriesCount++;
             }
         }
@@ -756,32 +917,67 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
         // Создаем тестовые данные для демонстрации
         logMessage("updatePlot: Creating test chart with sample data");
         
-        QLineSeries* testSeries = new QLineSeries();
-        testSeries->setName("Тестовые данные");
+        // Очищаем старые серии
+        chart->removeAllSeries();
+        
+        // Создаем тестовые серии для PTP устройств
+        QLineSeries* series1 = new QLineSeries();
+        series1->setName("PTP0 - PTP1 (тест)");
+        series1->setColor(QColor(255, 100, 100));
+        
+        QLineSeries* series2 = new QLineSeries();
+        series2->setName("PTP0 - PTP2 (тест)");
+        series2->setColor(QColor(100, 255, 100));
+        
+        QLineSeries* series3 = new QLineSeries();
+        series3->setName("PTP1 - PTP2 (тест)");
+        series3->setColor(QColor(100, 100, 255));
         
         QDateTime now = QDateTime::currentDateTime();
-        for (int i = 0; i < 10; ++i) {
+        
+        // Генерируем реалистичные тестовые данные
+        for (int i = 0; i < 20; ++i) {
             QDateTime pointTime = now.addSecs(i);
-            qint64 value = 1000000 + (i * 50000) + (rand() % 100000); // Случайные значения
-            testSeries->append(pointTime.toMSecsSinceEpoch(), value);
-            logMessage(QString("updatePlot: Added test point %1 at %2").arg(value).arg(pointTime.toString("hh:mm:ss")));
+            
+            // Симулируем PTP различия в наносекундах
+            qint64 value1 = 1000000 + (i * 10000) + (rand() % 50000) - 25000; // ±25μs
+            qint64 value2 = -500000 + (i * 5000) + (rand() % 30000) - 15000;  // ±15μs
+            qint64 value3 = 200000 + (i * 8000) + (rand() % 40000) - 20000;   // ±20μs
+            
+            series1->append(pointTime.toMSecsSinceEpoch(), value1);
+            series2->append(pointTime.toMSecsSinceEpoch(), value2);
+            series3->append(pointTime.toMSecsSinceEpoch(), value3);
+            
+            if (i < 3) { // Логируем только первые несколько точек
+                logMessage(QString("updatePlot: Added test points at %1").arg(pointTime.toString("hh:mm:ss")));
+            }
         }
         
-        chart->addSeries(testSeries);
-        testSeries->attachAxis(timeAxis);
-        testSeries->attachAxis(valueAxis);
+        // Добавляем серии в график
+        chart->addSeries(series1);
+        if (timeAxis) series1->attachAxis(timeAxis);
+        if (valueAxis) series1->attachAxis(valueAxis);
+        
+        chart->addSeries(series2);
+        if (timeAxis) series2->attachAxis(timeAxis);
+        if (valueAxis) series2->attachAxis(valueAxis);
+        
+        chart->addSeries(series3);
+        if (timeAxis) series3->attachAxis(timeAxis);
+        if (valueAxis) series3->attachAxis(valueAxis);
+        
+        logMessage("updatePlot: Created test chart with 3 series and 20 points each");
     }
 
     // Сохраняем ссылку на текущий график для экспорта
     m_currentChart = chart;
 
-    // Обновляем виджет графика
-    if (m_plotWidget) {
-        m_plotWidget->setChart(chart);
-        logMessage("updatePlot: Интерактивный график обновлен успешно");
-    } else {
-        logMessage("updatePlot: ERROR - m_plotWidget is null!");
-    }
+    // Принудительно обновляем график
+    chart->update();
+    m_plotWidget->update();
+
+    // График уже обновлен, просто логируем успех
+    logMessage("updatePlot: Интерактивный график обновлен успешно");
 }
 
 void ShiwaDiffPHCMainWindow::onAbout() {
@@ -952,12 +1148,24 @@ void ShiwaDiffPHCMainWindow::onAdvancedAnalysis() {
         return;
     }
     
+    // Show progress dialog
+    QProgressDialog progress("Выполняется расширенный анализ...", "Отмена", 0, 100, this);
+    progress.setWindowModality(Qt::WindowModal);
+    progress.show();
+    QApplication::processEvents();
+    
     // Perform comprehensive analysis on the latest result
     const PHCResult& latestResult = m_results.back();
     logMessage("Выполняется расширенный анализ...");
     
+    progress.setValue(20);
+    QApplication::processEvents();
+    
     m_advancedStats = AdvancedAnalysis::performComprehensiveAnalysis(latestResult);
     m_hasAdvancedStats = true;
+    
+    progress.setValue(100);
+    progress.close();
     
     // Display results in a dialog
     QString analysisText = QString(
@@ -1235,30 +1443,27 @@ void ShiwaDiffPHCMainWindow::onSyncPTPDevices() {
     progress.setWindowModality(Qt::WindowModal);
     progress.show();
     
-    int successCount = 0;
+    // Start synchronization for all devices
     for (int i = 0; i < selectedDevices.size(); ++i) {
         if (progress.wasCanceled()) break;
         
         progress.setValue(i);
-        progress.setLabelText(QString("Синхронизация %1...").arg(selectedDevices[i]));
+        progress.setLabelText(QString("Запуск синхронизации %1...").arg(selectedDevices[i]));
         QApplication::processEvents();
         
-        if (syncPTPDevice(selectedDevices[i], true)) {
-            successCount++;
-            logMessage(QString("Устройство %1 успешно синхронизировано").arg(selectedDevices[i]));
-        } else {
-            logMessage(QString("Ошибка синхронизации устройства %1").arg(selectedDevices[i]));
-        }
+        // Start async synchronization
+        syncPTPDevice(selectedDevices[i], true);
         
-        // Small delay between syncs
-        QThread::msleep(1000);
+        // Small delay between starting syncs
+        QThread::msleep(500);
     }
     
     progress.setValue(selectedDevices.size());
     
-    QMessageBox::information(this, "Синхронизация завершена", 
-                           QString("Синхронизировано %1 из %2 устройств.")
-                           .arg(successCount).arg(selectedDevices.size()));
+    QMessageBox::information(this, "Синхронизация запущена", 
+                           QString("Синхронизация запущена для %1 устройств.\n"
+                                  "Результаты будут отображены в логах по мере завершения.")
+                           .arg(selectedDevices.size()));
     
     // Update sync status
     updateSyncStatus();
@@ -1294,11 +1499,13 @@ void ShiwaDiffPHCMainWindow::onSyncSystemTime() {
     
     if (reply == QMessageBox::Yes) {
         if (syncPTPDevice(device, false)) {
-            QMessageBox::information(this, "Успех", "Системное время успешно синхронизировано с PTP устройством.");
-            logMessage(QString("Системное время синхронизировано с %1").arg(device));
+            QMessageBox::information(this, "Синхронизация запущена", 
+                                   "Синхронизация системного времени запущена.\n"
+                                   "Результат будет отображен в логах по завершении.");
+            logMessage(QString("Запущена синхронизация системного времени с %1").arg(device));
         } else {
-            QMessageBox::critical(this, "Ошибка", "Не удалось синхронизировать системное время.");
-            logMessage(QString("Ошибка синхронизации системного времени с %1").arg(device));
+            QMessageBox::critical(this, "Ошибка", "Не удалось запустить синхронизацию системного времени.");
+            logMessage(QString("Ошибка запуска синхронизации системного времени с %1").arg(device));
         }
     }
 }
@@ -1343,59 +1550,62 @@ bool ShiwaDiffPHCMainWindow::syncPTPDevice(const QString& device, bool toSystemT
         return false;
     }
     
-    QStringList arguments;
-    if (toSystemTime) {
-        // Sync PTP device to system time
-        arguments << "-s" << "CLOCK_REALTIME" << "-c" << devicePath << "-O" << "0" << "-m" << "-l" << "6";
-    } else {
-        // Sync system time to PTP device
-        arguments << "-s" << devicePath << "-c" << "CLOCK_REALTIME" << "-O" << "0" << "-m" << "-l" << "6";
-    }
-    
-    // Start phc2sys process
+    // Clean up any existing process
     if (m_syncProcess) {
         m_syncProcess->kill();
         m_syncProcess->deleteLater();
+        m_syncProcess = nullptr;
     }
     
+    // Create new process
     m_syncProcess = new QProcess(this);
+    
+    // Set up arguments
+    QStringList arguments;
+    if (toSystemTime) {
+        arguments << "-s" << "CLOCK_REALTIME" << "-c" << devicePath << "-O" << "0" << "-m" << "-l" << "6";
+    } else {
+        arguments << "-s" << devicePath << "-c" << "CLOCK_REALTIME" << "-O" << "0" << "-m" << "-l" << "6";
+    }
+    
     m_syncProcess->setProgram("phc2sys");
     m_syncProcess->setArguments(arguments);
     
-    // Connect signals
+    // Connect signals for async operation
     connect(m_syncProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            [this, device, toSystemTime](int exitCode, QProcess::ExitStatus exitStatus) {
+            [this, device, deviceName, toSystemTime](int exitCode, QProcess::ExitStatus exitStatus) {
                 if (exitCode == 0) {
-                    logMessage(QString("Синхронизация %1 завершена успешно").arg(device));
+                    logMessage(QString("Синхронизация %1 завершена успешно").arg(deviceName));
                     m_deviceSyncStatus[device] = toSystemTime ? "Синхронизирован с системой" : "Система синхронизирована";
                 } else {
-                    logMessage(QString("Ошибка синхронизации %1 (код: %2)").arg(device).arg(exitCode));
+                    logMessage(QString("Ошибка синхронизации %1 (код: %2)").arg(deviceName).arg(exitCode));
                     m_deviceSyncStatus[device] = "Ошибка синхронизации";
                 }
+                m_syncProcess->deleteLater();
+                m_syncProcess = nullptr;
             });
     
     connect(m_syncProcess, &QProcess::errorOccurred,
-            [this, device](QProcess::ProcessError error) {
-                logMessage(QString("Ошибка процесса синхронизации %1: %2").arg(device).arg(error));
+            [this, device, deviceName](QProcess::ProcessError error) {
+                logMessage(QString("Ошибка процесса синхронизации %1: %2").arg(deviceName).arg(error));
                 m_deviceSyncStatus[device] = "Ошибка процесса";
+                m_syncProcess->deleteLater();
+                m_syncProcess = nullptr;
             });
     
-    // Start the process
+    // Start the process asynchronously
+    logMessage(QString("Запуск синхронизации %1...").arg(deviceName));
     m_syncProcess->start();
     
     if (!m_syncProcess->waitForStarted(5000)) {
-        logMessage(QString("Не удалось запустить phc2sys для %1").arg(device));
+        logMessage(QString("Не удалось запустить phc2sys для %1").arg(deviceName));
+        m_syncProcess->deleteLater();
+        m_syncProcess = nullptr;
         return false;
     }
     
-    // Wait for completion (with timeout)
-    if (!m_syncProcess->waitForFinished(30000)) { // 30 second timeout
-        logMessage(QString("Таймаут синхронизации %1").arg(device));
-        m_syncProcess->kill();
-        return false;
-    }
-    
-    return m_syncProcess->exitCode() == 0;
+    // Return true immediately - process is running asynchronously
+    return true;
 }
 
 QString ShiwaDiffPHCMainWindow::getPTPDeviceStatus(const QString& device) {
@@ -1415,20 +1625,13 @@ QString ShiwaDiffPHCMainWindow::getPTPDeviceStatus(const QString& device) {
         return "Устройство не найдено";
     }
     
-    // Try to get basic device info
-    QProcess process;
-    process.setProgram("phc2sys");
-    process.setArguments({"-s", "CLOCK_REALTIME", "-c", devicePath, "-O", "0", "-m", "-l", "1"});
-    
-    process.start();
-    if (!process.waitForFinished(5000)) {
-        return "Недоступен";
-    }
-    
-    if (process.exitCode() == 0) {
+    // Simple check - just verify device exists and is readable
+    QFile file(devicePath);
+    if (file.open(QIODevice::ReadOnly)) {
+        file.close();
         return "Доступен";
     } else {
-        return "Ошибка доступа";
+        return "Недоступен";
     }
 }
 
@@ -1450,6 +1653,20 @@ void ShiwaDiffPHCMainWindow::updateSyncStatus() {
     statusText += statusList.join(", ");
     
     statusBar()->showMessage(statusText);
+}
+
+void ShiwaDiffPHCMainWindow::onShowTestData() {
+    logMessage("Показ тестовых данных для демонстрации графиков");
+    
+    // Создаем фиктивный результат для показа тестовых данных
+    PHCResult testResult;
+    testResult.success = false; // Это заставит показать тестовые данные
+    testResult.devices = {0, 1, 2};
+    testResult.baseTimestamp = QDateTime::currentDateTime().toMSecsSinceEpoch() * 1000000;
+    
+    updatePlot(testResult);
+    
+    logMessage("Тестовые данные отображены на графике");
 }
 
 // Main function for GUI application
