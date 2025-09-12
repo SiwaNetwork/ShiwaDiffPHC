@@ -41,6 +41,7 @@
 
 #include "diffphc_core.h"
 #include "advanced_analysis.h"
+#include "web_server_alternative.h"
 
 
 class ShiwaDiffPHCMainWindow : public QMainWindow {
@@ -79,6 +80,9 @@ private slots:
     void onSyncSystemTime();
     void onShowSyncStatus();
     void onShowTestData();
+    void onToggleWebServer();
+    void onWebServerStarted();
+    void onWebServerStopped();
 
 private:
     void setupUI();
@@ -168,6 +172,10 @@ private:
     QProcess* m_syncProcess;
     QTimer* m_syncStatusTimer;
     QMap<QString, QString> m_deviceSyncStatus;
+    
+    // Web Server
+    WebServerAlternative* m_webServer;
+    bool m_webServerEnabled;
 };
 
 #endif // SHIWADIFFPHC_GUI_H

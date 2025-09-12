@@ -3,14 +3,14 @@ CFLAGS = -O2 -Wall -std=c++17 -pthread
 LDFLAGS = -lpthread 
 
 # Qt settings - Try Qt6 first, fallback to Qt5
-QT_CFLAGS = $(shell pkg-config --cflags Qt6Core Qt6Widgets Qt6Gui Qt6Charts 2>/dev/null || echo "-I/usr/include/qt6 -I/usr/include/qt6/QtCore -I/usr/include/qt6/QtWidgets -I/usr/include/qt6/QtGui -I/usr/include/qt6/QtCharts") -fPIC
-QT_LDFLAGS = $(shell pkg-config --libs Qt6Core Qt6Widgets Qt6Gui Qt6Charts 2>/dev/null || echo "-lQt6Core -lQt6Widgets -lQt6Gui -lQt6Charts")
+QT_CFLAGS = $(shell pkg-config --cflags Qt6Core Qt6Widgets Qt6Gui Qt6Charts Qt6HttpServer Qt6Network 2>/dev/null || echo "-I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtCharts -I/usr/include/x86_64-linux-gnu/qt6/QtHttpServer -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork") -fPIC
+QT_LDFLAGS = $(shell pkg-config --libs Qt6Core Qt6Widgets Qt6Gui Qt6Charts Qt6HttpServer Qt6Network 2>/dev/null || echo "-lQt6Core -lQt6Widgets -lQt6Gui -lQt6Charts -lQt6HttpServer -lQt6Network")
 MOC = $(shell which /usr/lib/qt6/libexec/moc 2>/dev/null || which moc-qt6 2>/dev/null || which moc 2>/dev/null || echo "moc")
 
 # Source files
 CORE_SOURCES = diffphc_core.cpp
 CLI_SOURCES = diffphc_cli.cpp
-GUI_SOURCES = diffphc_gui.cpp advanced_analysis.cpp
+GUI_SOURCES = diffphc_gui.cpp advanced_analysis.cpp web_server_alternative.cpp
 LEGACY_SOURCES = diffphc.cpp
 
 # Object files
@@ -55,6 +55,17 @@ diffphc_cli.o: diffphc_cli.cpp diffphc_core.h
 # GUI object files
 diffphc_gui.o: diffphc_gui.cpp diffphc_gui.h diffphc_core.h $(GUI_MOC)
 	$(CC) $(CFLAGS) $(QT_CFLAGS) -o $@ -c $<
+
+# Web server object files
+web_server_alternative.moc: web_server_alternative.h
+	$(MOC) web_server_alternative.h -o web_server_alternative.moc
+
+web_server_alternative.o: web_server_alternative.cpp web_server_alternative.h web_server_alternative.moc diffphc_core.h
+	$(CC) $(CFLAGS) $(QT_CFLAGS) -o $@ -c $<
+
+# Advanced analysis object files
+advanced_analysis.o: advanced_analysis.cpp advanced_analysis.h diffphc_core.h
+	$(CC) $(CFLAGS) -o $@ -c $<
 
 # Qt MOC files
 $(GUI_MOC): diffphc_gui.h
@@ -138,7 +149,7 @@ uninstall:
 	@echo "✓ Uninstalled ShiwaDiffPHC tools"
 
 clean:
-	-rm -f *.o *.log $(TARGETS) $(GUI_MOC)
+	-rm -f *.o *.log $(TARGETS) $(GUI_MOC) web_server_alternative.moc
 	@echo "✓ Cleaned build files"
 
 format:

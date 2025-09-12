@@ -17,6 +17,7 @@
 #include <QProgressDialog>
 #include <QThread>
 #include <QProcess>
+#include <QFileInfo>
 #include <cmath>
 #include <algorithm>
 
@@ -29,6 +30,8 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     , m_hasAdvancedStats(false)
     , m_syncProcess(nullptr)
     , m_syncStatusTimer(new QTimer(this))
+    , m_webServer(new WebServerAlternative(this))
+    , m_webServerEnabled(false)
 {
     setWindowTitle("ShiwaDiffPHC v1.6.0 - Анализатор различий протокола точного времени");
     setMinimumSize(1200, 800);
@@ -48,6 +51,11 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     updateDeviceList();
     
     connect(m_measurementTimer, &QTimer::timeout, this, &ShiwaDiffPHCMainWindow::onTimerUpdate);
+    
+    // Web server connections
+    connect(m_webServer, &WebServerAlternative::measurementRequested, this, &ShiwaDiffPHCMainWindow::onStartMeasurement);
+    connect(m_webServer, &WebServerAlternative::measurementStopped, this, &ShiwaDiffPHCMainWindow::onStopMeasurement);
+    connect(m_webServer, &WebServerAlternative::deviceRefreshRequested, this, &ShiwaDiffPHCMainWindow::onRefreshDevices);
     
     // Initialize sync status timer (disabled to prevent GUI freezing)
     // connect(m_syncStatusTimer, &QTimer::timeout, this, &ShiwaDiffPHCMainWindow::updateSyncStatus);
@@ -153,6 +161,12 @@ void ShiwaDiffPHCMainWindow::setupMenuBar() {
     auto* clearResultsAction = toolsMenu->addAction("&Clear Results");
     clearResultsAction->setShortcut(QKeySequence("Ctrl+Delete"));
     connect(clearResultsAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::clearResults);
+    
+    toolsMenu->addSeparator();
+    
+    auto* webServerAction = toolsMenu->addAction("🌐 &Web Interface");
+    webServerAction->setShortcut(QKeySequence("Ctrl+W"));
+    connect(webServerAction, &QAction::triggered, this, &ShiwaDiffPHCMainWindow::onToggleWebServer);
     
     // Synchronization Menu
     auto* syncMenu = menuBar()->addMenu("&Synchronization");
@@ -463,6 +477,12 @@ void ShiwaDiffPHCMainWindow::onTimerUpdate() {
         updateStatisticsTable(result);
         logMessage(QString("Calling updatePlot for iteration %1").arg(m_currentIteration));
         updatePlot(result);
+        
+        // Send data to web server
+        if (m_webServer && m_webServerEnabled) {
+            m_webServer->addMeasurementResult(result);
+        }
+        
         m_currentIteration++;
         
         if (m_currentConfig.count > 0) {
@@ -1066,7 +1086,7 @@ void ShiwaDiffPHCMainWindow::onToggleTheme() {
 }
 
 void ShiwaDiffPHCMainWindow::onExportChart() {
-    if (!m_currentChart) {
+    if (!m_plotWidget || !m_plotWidget->chart()) {
         QMessageBox::warning(this, "Экспорт графика", "Нет данных для экспорта");
         return;
     }
@@ -1074,13 +1094,19 @@ void ShiwaDiffPHCMainWindow::onExportChart() {
     QString fileName = QFileDialog::getSaveFileName(this, 
         "Экспорт графика", 
         QString("shiwadiffphc_chart_%1.png").arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss")),
-        "PNG Files (*.png);;SVG Files (*.svg);;JPEG Files (*.jpg)");
+        "PNG Files (*.png);;JPEG Files (*.jpg)");
     
     if (!fileName.isEmpty()) {
-        QPixmap pixmap = m_chartView->grab();
-        if (pixmap.save(fileName)) {
+        QString format = QFileInfo(fileName).suffix().toLower();
+        
+        // Export as raster image (PNG, JPG)
+        QPixmap pixmap = m_plotWidget->grab();
+        bool success = pixmap.save(fileName);
+        
+        if (success) {
             logMessage(QString("График экспортирован: %1").arg(fileName));
-            QMessageBox::information(this, "Экспорт", "График успешно экспортирован");
+            QMessageBox::information(this, "Экспорт", 
+                QString("График успешно экспортирован в формате %1").arg(format.toUpper()));
         } else {
             QMessageBox::critical(this, "Ошибка", "Не удалось сохранить график");
         }
@@ -1667,6 +1693,37 @@ void ShiwaDiffPHCMainWindow::onShowTestData() {
     updatePlot(testResult);
     
     logMessage("Тестовые данные отображены на графике");
+}
+
+void ShiwaDiffPHCMainWindow::onToggleWebServer() {
+    if (m_webServerEnabled) {
+        m_webServer->stopServer();
+        m_webServerEnabled = false;
+        logMessage("Веб-сервер остановлен");
+        QMessageBox::information(this, "Веб-сервер", "Веб-сервер остановлен");
+    } else {
+        if (m_webServer->startServer(8080)) {
+            m_webServerEnabled = true;
+            logMessage("Веб-сервер запущен на порту 8080");
+            QMessageBox::information(this, "Веб-сервер", 
+                "Веб-сервер запущен!\n\n"
+                "Откройте в браузере: http://localhost:8080\n"
+                "Или: http://127.0.0.1:8080");
+        } else {
+            logMessage("Ошибка запуска веб-сервера");
+            QMessageBox::critical(this, "Ошибка", "Не удалось запустить веб-сервер на порту 8080");
+        }
+    }
+}
+
+void ShiwaDiffPHCMainWindow::onWebServerStarted() {
+    m_webServerEnabled = true;
+    logMessage("Веб-сервер успешно запущен");
+}
+
+void ShiwaDiffPHCMainWindow::onWebServerStopped() {
+    m_webServerEnabled = false;
+    logMessage("Веб-сервер остановлен");
 }
 
 // Main function for GUI application
