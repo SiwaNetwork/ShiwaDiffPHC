@@ -39,6 +39,12 @@ class ShiwaDiffPHCHandler(http.server.SimpleHTTPRequestHandler):
             self.send_api_response({"history": history})
         elif self.path == '/api/devices':
             self.send_api_response({"devices": [0, 1]})
+        elif self.path == '/api/start':
+            self.send_api_response({"status": "started"})
+        elif self.path == '/api/stop':
+            self.send_api_response({"status": "stopped"})
+        elif self.path == '/api/refresh':
+            self.send_api_response({"status": "refreshed"})
         else:
             super().do_GET()
     
@@ -68,7 +74,7 @@ class ShiwaDiffPHCHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 def main():
-    PORT = 8081
+    PORT = 8082
     
     print(f"Запуск тестового веб-сервера ShiwaDiffPHC на порту {PORT}")
     print(f"Откройте в браузере: http://localhost:{PORT}")

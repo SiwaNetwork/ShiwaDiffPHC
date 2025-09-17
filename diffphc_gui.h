@@ -65,9 +65,6 @@ private slots:
     void onAbout();
     void onToggleTheme();
     void onExportChart();
-    void onZoomIn();
-    void onZoomOut();
-    void onResetZoom();
     void clearResults();
     void onAdvancedAnalysis();
     void onTrendAnalysis();
@@ -83,6 +80,13 @@ private slots:
     void onToggleWebServer();
     void onWebServerStarted();
     void onWebServerStopped();
+    
+    // Chart control functions
+    void onZoomIn();
+    void onZoomOut();
+    void onZoomFit();
+    void onResetZoom();
+    void onToggleSeries();
 
 private:
     void setupUI();
@@ -176,6 +180,11 @@ private:
     // Web Server
     WebServerAlternative* m_webServer;
     bool m_webServerEnabled;
+    
+    // Chart control state
+    double m_zoomFactor;
+    bool m_autoScale;
+    QMap<QString, bool> m_seriesVisibility;
 };
 
 #endif // SHIWADIFFPHC_GUI_H

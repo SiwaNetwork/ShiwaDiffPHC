@@ -31,7 +31,18 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     , m_syncProcess(nullptr)
     , m_syncStatusTimer(new QTimer(this))
     , m_webServer(new WebServerAlternative(this))
+    , m_resultsTable(nullptr)
+    , m_statisticsTable(nullptr)
+    , m_plotWidget(nullptr)
+    , m_logTextEdit(nullptr)
+    , m_progressBar(nullptr)
+    , m_statusLabel(nullptr)
+    , m_deviceCountLabel(nullptr)
+    , m_currentChart(nullptr)
+    , m_chartView(nullptr)
     , m_webServerEnabled(false)
+    , m_zoomFactor(1.0)
+    , m_autoScale(true)
 {
     setWindowTitle("ShiwaDiffPHC v1.6.0 - Анализатор различий протокола точного времени");
     setMinimumSize(1200, 800);
@@ -70,10 +81,34 @@ ShiwaDiffPHCMainWindow::ShiwaDiffPHCMainWindow(QWidget *parent)
     
     logMessage("ShiwaDiffPHC GUI v1.6.0 инициализирован с современным интерфейсом и функционалом синхронизации");
     
-    // Показываем тестовый график при запуске
-    PHCResult testResult;
-    testResult.success = false; // Это заставит показать тестовые данные
-    updatePlot(testResult);
+    // Автоматически выбираем первые два доступных PTP устройства и запускаем измерения
+    QTimer::singleShot(3000, this, [this]() {
+        logMessage("Автоматическая настройка и запуск измерений...");
+        
+        // Проверяем, что все компоненты инициализированы
+        if (!m_plotWidget) {
+            logMessage("Ошибка: m_plotWidget не инициализирован");
+            return;
+        }
+        
+        // Выбираем первые два доступных устройства
+        if (m_deviceCheckBoxes[0] && m_deviceCheckBoxes[1]) {
+            m_deviceCheckBoxes[0]->setChecked(true);
+            m_deviceCheckBoxes[1]->setChecked(true);
+            logMessage("Автоматически выбраны устройства PTP0 и PTP1");
+        }
+        
+        // Устанавливаем разумные параметры по умолчанию
+        if (m_countSpinBox) m_countSpinBox->setValue(10);
+        if (m_delaySpinBox) m_delaySpinBox->setValue(1000000); // 1 секунда
+        if (m_samplesSpinBox) m_samplesSpinBox->setValue(10);
+        
+        // Запускаем измерения автоматически
+        QTimer::singleShot(1000, this, [this]() {
+            logMessage("Автоматический запуск измерений...");
+            onStartMeasurement();
+        });
+    });
 }
 
 ShiwaDiffPHCMainWindow::~ShiwaDiffPHCMainWindow() {
@@ -284,15 +319,36 @@ void ShiwaDiffPHCMainWindow::setupControlPanel() {
     m_clearButton = new QPushButton("Clear Results");
     QPushButton* m_testButton = new QPushButton("Show Test Data");
     
+    // Кнопки управления графиком
+    QPushButton* m_zoomInButton = new QPushButton("🔍+ Zoom In");
+    QPushButton* m_zoomOutButton = new QPushButton("🔍- Zoom Out");
+    QPushButton* m_zoomFitButton = new QPushButton("📐 Fit to Data");
+    QPushButton* m_resetZoomButton = new QPushButton("🔄 Reset Zoom");
+    QPushButton* m_toggleSeriesButton = new QPushButton("👁️ Toggle Series");
+    
     m_startButton->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; }");
     m_stopButton->setStyleSheet("QPushButton { background-color: #f44336; color: white; font-weight: bold; }");
     m_stopButton->setEnabled(false);
+    
+    // Стили для кнопок управления графиком
+    m_zoomInButton->setStyleSheet("QPushButton { background-color: #2196F3; color: white; font-weight: bold; }");
+    m_zoomOutButton->setStyleSheet("QPushButton { background-color: #2196F3; color: white; font-weight: bold; }");
+    m_zoomFitButton->setStyleSheet("QPushButton { background-color: #FF9800; color: white; font-weight: bold; }");
+    m_resetZoomButton->setStyleSheet("QPushButton { background-color: #9C27B0; color: white; font-weight: bold; }");
+    m_toggleSeriesButton->setStyleSheet("QPushButton { background-color: #607D8B; color: white; font-weight: bold; }");
     
     controlButtonLayout->addWidget(m_startButton);
     controlButtonLayout->addWidget(m_stopButton);
     controlButtonLayout->addWidget(m_saveButton);
     controlButtonLayout->addWidget(m_clearButton);
     controlButtonLayout->addWidget(m_testButton);
+    
+    // Добавляем кнопки управления графиком
+    controlButtonLayout->addWidget(m_zoomInButton);
+    controlButtonLayout->addWidget(m_zoomOutButton);
+    controlButtonLayout->addWidget(m_zoomFitButton);
+    controlButtonLayout->addWidget(m_resetZoomButton);
+    controlButtonLayout->addWidget(m_toggleSeriesButton);
     
     connect(m_startButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onStartMeasurement);
     connect(m_stopButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onStopMeasurement);
@@ -301,6 +357,13 @@ void ShiwaDiffPHCMainWindow::setupControlPanel() {
     connect(m_testButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onShowTestData);
     connect(m_refreshButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onRefreshDevices);
     connect(m_infoButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onShowDeviceInfo);
+    
+    // Подключение кнопок управления графиком
+    connect(m_zoomInButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onZoomIn);
+    connect(m_zoomOutButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onZoomOut);
+    connect(m_zoomFitButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onZoomFit);
+    connect(m_resetZoomButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onResetZoom);
+    connect(m_toggleSeriesButton, &QPushButton::clicked, this, &ShiwaDiffPHCMainWindow::onToggleSeries);
     
     controlLayout->addWidget(m_deviceGroup);
     controlLayout->addWidget(m_configGroup);
@@ -402,7 +465,7 @@ void ShiwaDiffPHCMainWindow::updateDeviceList() {
         }
     }
     
-    m_deviceCountLabel->setText(QString("Devices: %1").arg(m_availableDevices.size()));
+    if (m_deviceCountLabel) m_deviceCountLabel->setText(QString("Devices: %1").arg(m_availableDevices.size()));
     
     logMessage(QString("Found %1 PTP devices").arg(m_availableDevices.size()));
 }
@@ -423,17 +486,19 @@ void ShiwaDiffPHCMainWindow::onStartMeasurement() {
     m_measuring = true;
     m_currentIteration = 0;
     
-    m_startButton->setEnabled(false);
-    m_stopButton->setEnabled(true);
-    m_progressBar->setVisible(true);
+    if (m_startButton) m_startButton->setEnabled(false);
+    if (m_stopButton) m_stopButton->setEnabled(true);
+    if (m_progressBar) m_progressBar->setVisible(true);
     
-    if (m_currentConfig.count > 0) {
-        m_progressBar->setRange(0, m_currentConfig.count);
-    } else {
-        m_progressBar->setRange(0, 0); // Indeterminate progress
+    if (m_progressBar) {
+        if (m_currentConfig.count > 0) {
+            m_progressBar->setRange(0, m_currentConfig.count);
+        } else {
+            m_progressBar->setRange(0, 0); // Indeterminate progress
+        }
     }
     
-    m_statusLabel->setText("Measuring...");
+    if (m_statusLabel) m_statusLabel->setText("Measuring...");
     
     // Start measurement timer
     m_measurementTimer->start(m_currentConfig.delay / 1000); // Convert μs to ms
@@ -445,10 +510,10 @@ void ShiwaDiffPHCMainWindow::onStopMeasurement() {
     m_measuring = false;
     m_measurementTimer->stop();
     
-    m_startButton->setEnabled(true);
-    m_stopButton->setEnabled(false);
-    m_progressBar->setVisible(false);
-    m_statusLabel->setText("Stopped");
+    if (m_startButton) m_startButton->setEnabled(true);
+    if (m_stopButton) m_stopButton->setEnabled(false);
+    if (m_progressBar) m_progressBar->setVisible(false);
+    if (m_statusLabel) m_statusLabel->setText("Stopped");
     
     logMessage("Measurement stopped");
 }
@@ -486,7 +551,7 @@ void ShiwaDiffPHCMainWindow::onTimerUpdate() {
         m_currentIteration++;
         
         if (m_currentConfig.count > 0) {
-            m_progressBar->setValue(m_currentIteration);
+            if (m_progressBar) m_progressBar->setValue(m_currentIteration);
             if (m_currentIteration >= m_currentConfig.count) {
                 onStopMeasurement();
                 logMessage(QString("Measurement completed: %1 iterations").arg(m_currentIteration));
@@ -596,7 +661,7 @@ void ShiwaDiffPHCMainWindow::updateStatisticsTable(const PHCResult& result) {
         int idx = 0;
         for (int i = 0; i < numDev; ++i) {
             for (int j = 0; j <= i; ++j) {
-                if (idx < res.differences[0].size()) {
+                if (idx < static_cast<int>(res.differences[0].size())) {
                     pairData[i][j].push_back(res.differences[0][idx]);
                 }
                 idx++;
@@ -680,8 +745,26 @@ void ShiwaDiffPHCMainWindow::onDeviceSelectionChanged() {
     
     if (selectedCount < 2) {
         m_statusLabel->setText("Выберите минимум 2 устройства");
+        // Очищаем график, если устройств недостаточно
+        QChart* chart = m_plotWidget->chart();
+        if (chart) {
+            chart->removeAllSeries();
+            m_plotWidget->update();
+        }
     } else {
         m_statusLabel->setText("Готов к измерению");
+        
+        // Обновляем конфигурацию
+        m_currentConfig = getCurrentConfig();
+        
+        // Логируем выбранные устройства
+        QStringList selectedDevices;
+        for (int i = 0; i < 8; ++i) {
+            if (m_deviceCheckBoxes[i]->isChecked()) {
+                selectedDevices << QString("PTP%1").arg(i);
+            }
+        }
+        logMessage(QString("Выбраны устройства: %1").arg(selectedDevices.join(", ")));
     }
 }
 
@@ -742,7 +825,7 @@ void ShiwaDiffPHCMainWindow::clearResults() {
 
 void ShiwaDiffPHCMainWindow::logMessage(const QString& message) {
     QString timestamp = QDateTime::currentDateTime().toString("hh:mm:ss");
-    m_logTextEdit->appendPlainText(QString("[%1] %2").arg(timestamp, message));
+    if (m_logTextEdit) m_logTextEdit->appendPlainText(QString("[%1] %2").arg(timestamp, message));
 }
 
 void ShiwaDiffPHCMainWindow::onSaveResults() {
@@ -791,6 +874,12 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
     // Добавляем отладочную информацию
     logMessage(QString("updatePlot called - success: %1, differences size: %2").arg(result.success).arg(result.differences.size()));
     
+    // Проверяем, что m_plotWidget инициализирован
+    if (!m_plotWidget) {
+        logMessage("Ошибка: m_plotWidget не инициализирован в updatePlot");
+        return;
+    }
+    
     // Получаем существующий график или создаем новый
     QChart* chart = m_plotWidget->chart();
     QDateTimeAxis* timeAxis = nullptr;
@@ -812,15 +901,21 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
         // Создаем ось значений
         valueAxis = new QValueAxis;
         valueAxis->setTitleText("Различие (нс)");
-        valueAxis->setRange(-1000000, 1000000); // Устанавливаем диапазон ±1мс
+        valueAxis->setRange(0, 1000000); // Начальный диапазон 0-1мс, будет автоматически масштабироваться
         valueAxis->setTickCount(11);
         chart->addAxis(valueAxis, Qt::AlignLeft);
         
         m_plotWidget->setChart(chart);
     } else {
         // Получаем существующие оси
-        timeAxis = qobject_cast<QDateTimeAxis*>(chart->axisX());
-        valueAxis = qobject_cast<QValueAxis*>(chart->axisY());
+        const auto axes = chart->axes();
+        for (auto* axis : axes) {
+            if (axis->orientation() == Qt::Horizontal) {
+                timeAxis = qobject_cast<QDateTimeAxis*>(axis);
+            } else if (axis->orientation() == Qt::Vertical) {
+                valueAxis = qobject_cast<QValueAxis*>(axis);
+            }
+        }
         
         // Если оси не найдены, создаем новые
         if (!timeAxis) {
@@ -833,7 +928,7 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
         if (!valueAxis) {
             valueAxis = new QValueAxis;
             valueAxis->setTitleText("Различие (нс)");
-            valueAxis->setRange(-1000000, 1000000);
+            valueAxis->setRange(0, 1000000); // Начальный диапазон 0-1мс, будет автоматически масштабироваться
             valueAxis->setTickCount(11);
             chart->addAxis(valueAxis, Qt::AlignLeft);
         }
@@ -915,6 +1010,28 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
                                 timeAxis->setRange(pointTime.addSecs(-60), pointTime.addSecs(10));
                             }
                             
+                            // Автоматическое масштабирование оси значений
+                            if (valueAxis) {
+                                // Получаем все значения из серии для определения диапазона
+                                QList<QPointF> points = series->points();
+                                if (!points.isEmpty()) {
+                                    double minValue = points[0].y();
+                                    double maxValue = points[0].y();
+                                    
+                                    for (const QPointF& point : points) {
+                                        minValue = std::min(minValue, point.y());
+                                        maxValue = std::max(maxValue, point.y());
+                                    }
+                                    
+                                    // Добавляем 10% отступа сверху и снизу
+                                    double range = maxValue - minValue;
+                                    double padding = range * 0.1;
+                                    if (padding < 1000) padding = 1000; // Минимальный отступ 1000 нс
+                                    
+                                    valueAxis->setRange(minValue - padding, maxValue + padding);
+                                }
+                            }
+                            
                             QString valueStr;
                             if (std::abs(value) >= 1000) {
                                 valueStr = QString("%1 μс").arg(value / 1000.0, 0, 'f', 1);
@@ -934,63 +1051,58 @@ void ShiwaDiffPHCMainWindow::updatePlot(const PHCResult& result) {
         
         logMessage(QString("updatePlot: Created %1 series").arg(seriesCount));
     } else {
-        // Создаем тестовые данные для демонстрации
-        logMessage("updatePlot: Creating test chart with sample data");
+        // Не показываем тестовые данные - только реальные измерения
+        logMessage("updatePlot: No measurement data available - waiting for real measurements");
         
-        // Очищаем старые серии
+        // Очищаем график, если нет реальных данных
         chart->removeAllSeries();
         
-        // Создаем тестовые серии для PTP устройств
-        QLineSeries* series1 = new QLineSeries();
-        series1->setName("PTP0 - PTP1 (тест)");
-        series1->setColor(QColor(255, 100, 100));
+        // Добавляем информационное сообщение на график
+        QLineSeries* infoSeries = new QLineSeries();
+        infoSeries->setName("Ожидание измерений...");
+        infoSeries->setColor(QColor(150, 150, 150));
         
-        QLineSeries* series2 = new QLineSeries();
-        series2->setName("PTP0 - PTP2 (тест)");
-        series2->setColor(QColor(100, 255, 100));
-        
-        QLineSeries* series3 = new QLineSeries();
-        series3->setName("PTP1 - PTP2 (тест)");
-        series3->setColor(QColor(100, 100, 255));
-        
+        // Добавляем одну точку для отображения сообщения
         QDateTime now = QDateTime::currentDateTime();
+        infoSeries->append(now.toMSecsSinceEpoch(), 0);
         
-        // Генерируем реалистичные тестовые данные
-        for (int i = 0; i < 20; ++i) {
-            QDateTime pointTime = now.addSecs(i);
-            
-            // Симулируем PTP различия в наносекундах
-            qint64 value1 = 1000000 + (i * 10000) + (rand() % 50000) - 25000; // ±25μs
-            qint64 value2 = -500000 + (i * 5000) + (rand() % 30000) - 15000;  // ±15μs
-            qint64 value3 = 200000 + (i * 8000) + (rand() % 40000) - 20000;   // ±20μs
-            
-            series1->append(pointTime.toMSecsSinceEpoch(), value1);
-            series2->append(pointTime.toMSecsSinceEpoch(), value2);
-            series3->append(pointTime.toMSecsSinceEpoch(), value3);
-            
-            if (i < 3) { // Логируем только первые несколько точек
-                logMessage(QString("updatePlot: Added test points at %1").arg(pointTime.toString("hh:mm:ss")));
-            }
-        }
+        chart->addSeries(infoSeries);
+        if (timeAxis) infoSeries->attachAxis(timeAxis);
+        if (valueAxis) infoSeries->attachAxis(valueAxis);
         
-        // Добавляем серии в график
-        chart->addSeries(series1);
-        if (timeAxis) series1->attachAxis(timeAxis);
-        if (valueAxis) series1->attachAxis(valueAxis);
-        
-        chart->addSeries(series2);
-        if (timeAxis) series2->attachAxis(timeAxis);
-        if (valueAxis) series2->attachAxis(valueAxis);
-        
-        chart->addSeries(series3);
-        if (timeAxis) series3->attachAxis(timeAxis);
-        if (valueAxis) series3->attachAxis(valueAxis);
-        
-        logMessage("updatePlot: Created test chart with 3 series and 20 points each");
+        logMessage("updatePlot: Chart cleared - waiting for real measurement data");
     }
 
     // Сохраняем ссылку на текущий график для экспорта
     m_currentChart = chart;
+
+    // Автоматическое масштабирование всех серий (только если включено)
+    if (m_autoScale && valueAxis && !chart->series().isEmpty()) {
+        double globalMinValue = std::numeric_limits<double>::max();
+        double globalMaxValue = std::numeric_limits<double>::min();
+        bool hasData = false;
+        
+        for (QAbstractSeries* series : chart->series()) {
+            if (QLineSeries* lineSeries = qobject_cast<QLineSeries*>(series)) {
+                QList<QPointF> points = lineSeries->points();
+                for (const QPointF& point : points) {
+                    globalMinValue = std::min(globalMinValue, point.y());
+                    globalMaxValue = std::max(globalMaxValue, point.y());
+                    hasData = true;
+                }
+            }
+        }
+        
+        if (hasData) {
+            // Добавляем 10% отступа сверху и снизу
+            double range = globalMaxValue - globalMinValue;
+            double padding = range * 0.1;
+            if (padding < 1000) padding = 1000; // Минимальный отступ 1000 нс
+            
+            valueAxis->setRange(globalMinValue - padding, globalMaxValue + padding);
+            logMessage(QString("updatePlot: Автоматическое масштабирование: %.1f - %.1f нс").arg(globalMinValue - padding, 0, 'f', 1).arg(globalMaxValue + padding, 0, 'f', 1));
+        }
+    }
 
     // Принудительно обновляем график
     chart->update();
@@ -1113,26 +1225,6 @@ void ShiwaDiffPHCMainWindow::onExportChart() {
     }
 }
 
-void ShiwaDiffPHCMainWindow::onZoomIn() {
-    if (m_chartView) {
-        m_chartView->chart()->zoomIn();
-        logMessage("Увеличение графика");
-    }
-}
-
-void ShiwaDiffPHCMainWindow::onZoomOut() {
-    if (m_chartView) {
-        m_chartView->chart()->zoomOut();
-        logMessage("Уменьшение графика");
-    }
-}
-
-void ShiwaDiffPHCMainWindow::onResetZoom() {
-    if (m_chartView) {
-        m_chartView->chart()->zoomReset();
-        logMessage("Сброс масштаба графика");
-    }
-}
 
 void ShiwaDiffPHCMainWindow::dragEnterEvent(QDragEnterEvent* event) {
     if (event->mimeData()->hasUrls()) {
@@ -1586,12 +1678,12 @@ bool ShiwaDiffPHCMainWindow::syncPTPDevice(const QString& device, bool toSystemT
     // Create new process
     m_syncProcess = new QProcess(this);
     
-    // Set up arguments
+    // Set up arguments with timeout
     QStringList arguments;
     if (toSystemTime) {
-        arguments << "-s" << "CLOCK_REALTIME" << "-c" << devicePath << "-O" << "0" << "-m" << "-l" << "6";
+        arguments << "-s" << "CLOCK_REALTIME" << "-c" << devicePath << "-O" << "0" << "-m" << "-l" << "6" << "-t" << "5";
     } else {
-        arguments << "-s" << devicePath << "-c" << "CLOCK_REALTIME" << "-O" << "0" << "-m" << "-l" << "6";
+        arguments << "-s" << devicePath << "-c" << "CLOCK_REALTIME" << "-O" << "0" << "-m" << "-l" << "6" << "-t" << "5";
     }
     
     m_syncProcess->setProgram("phc2sys");
@@ -1629,6 +1721,14 @@ bool ShiwaDiffPHCMainWindow::syncPTPDevice(const QString& device, bool toSystemT
         m_syncProcess = nullptr;
         return false;
     }
+    
+    // Set up a timer to kill the process after 8 seconds if it doesn't finish
+    QTimer::singleShot(8000, [this, deviceName]() {
+        if (m_syncProcess && m_syncProcess->state() == QProcess::Running) {
+            logMessage(QString("Таймаут синхронизации %1, завершение процесса").arg(deviceName));
+            m_syncProcess->kill();
+        }
+    });
     
     // Return true immediately - process is running asynchronously
     return true;
@@ -1697,12 +1797,12 @@ void ShiwaDiffPHCMainWindow::onShowTestData() {
 
 void ShiwaDiffPHCMainWindow::onToggleWebServer() {
     if (m_webServerEnabled) {
-        m_webServer->stopServer();
+        if (m_webServer) m_webServer->stopServer();
         m_webServerEnabled = false;
         logMessage("Веб-сервер остановлен");
         QMessageBox::information(this, "Веб-сервер", "Веб-сервер остановлен");
     } else {
-        if (m_webServer->startServer(8080)) {
+        if (m_webServer && m_webServer->startServer(8080)) {
             m_webServerEnabled = true;
             logMessage("Веб-сервер запущен на порту 8080");
             QMessageBox::information(this, "Веб-сервер", 
@@ -1724,6 +1824,218 @@ void ShiwaDiffPHCMainWindow::onWebServerStarted() {
 void ShiwaDiffPHCMainWindow::onWebServerStopped() {
     m_webServerEnabled = false;
     logMessage("Веб-сервер остановлен");
+}
+
+// Chart control functions
+void ShiwaDiffPHCMainWindow::onZoomIn() {
+    if (!m_plotWidget || !m_plotWidget->chart()) return;
+    
+    m_zoomFactor *= 1.2;
+    QChart* chart = m_plotWidget->chart();
+    
+    // Получаем оси
+    const auto axes = chart->axes();
+    QDateTimeAxis* timeAxis = nullptr;
+    QValueAxis* valueAxis = nullptr;
+    
+    for (auto* axis : axes) {
+        if (axis->orientation() == Qt::Horizontal) {
+            timeAxis = qobject_cast<QDateTimeAxis*>(axis);
+        } else if (axis->orientation() == Qt::Vertical) {
+            valueAxis = qobject_cast<QValueAxis*>(axis);
+        }
+    }
+    
+    if (timeAxis) {
+        QDateTime min = timeAxis->min();
+        QDateTime max = timeAxis->max();
+        QDateTime center = min.addMSecs((max.toMSecsSinceEpoch() - min.toMSecsSinceEpoch()) / 2);
+        qint64 range = (max.toMSecsSinceEpoch() - min.toMSecsSinceEpoch()) / m_zoomFactor;
+        timeAxis->setRange(center.addMSecs(-range/2), center.addMSecs(range/2));
+    }
+    
+    if (valueAxis) {
+        double min = valueAxis->min();
+        double max = valueAxis->max();
+        double center = (min + max) / 2;
+        double range = (max - min) / m_zoomFactor;
+        valueAxis->setRange(center - range/2, center + range/2);
+    }
+    
+    m_autoScale = false;
+    logMessage(QString("Масштаб увеличен: %.1fx").arg(m_zoomFactor, 0, 'f', 1));
+}
+
+void ShiwaDiffPHCMainWindow::onZoomOut() {
+    if (!m_plotWidget || !m_plotWidget->chart()) return;
+    
+    m_zoomFactor /= 1.2;
+    QChart* chart = m_plotWidget->chart();
+    
+    // Получаем оси
+    const auto axes = chart->axes();
+    QDateTimeAxis* timeAxis = nullptr;
+    QValueAxis* valueAxis = nullptr;
+    
+    for (auto* axis : axes) {
+        if (axis->orientation() == Qt::Horizontal) {
+            timeAxis = qobject_cast<QDateTimeAxis*>(axis);
+        } else if (axis->orientation() == Qt::Vertical) {
+            valueAxis = qobject_cast<QValueAxis*>(axis);
+        }
+    }
+    
+    if (timeAxis) {
+        QDateTime min = timeAxis->min();
+        QDateTime max = timeAxis->max();
+        QDateTime center = min.addMSecs((max.toMSecsSinceEpoch() - min.toMSecsSinceEpoch()) / 2);
+        qint64 range = (max.toMSecsSinceEpoch() - min.toMSecsSinceEpoch()) / m_zoomFactor;
+        timeAxis->setRange(center.addMSecs(-range/2), center.addMSecs(range/2));
+    }
+    
+    if (valueAxis) {
+        double min = valueAxis->min();
+        double max = valueAxis->max();
+        double center = (min + max) / 2;
+        double range = (max - min) / m_zoomFactor;
+        valueAxis->setRange(center - range/2, center + range/2);
+    }
+    
+    logMessage(QString("Масштаб уменьшен: %.1fx").arg(m_zoomFactor, 0, 'f', 1));
+}
+
+void ShiwaDiffPHCMainWindow::onZoomFit() {
+    if (!m_plotWidget || !m_plotWidget->chart()) return;
+    
+    m_autoScale = true;
+    m_zoomFactor = 1.0;
+    
+    QChart* chart = m_plotWidget->chart();
+    
+    // Автоматическое масштабирование всех серий
+    const auto axes = chart->axes();
+    QDateTimeAxis* timeAxis = nullptr;
+    QValueAxis* valueAxis = nullptr;
+    
+    for (auto* axis : axes) {
+        if (axis->orientation() == Qt::Horizontal) {
+            timeAxis = qobject_cast<QDateTimeAxis*>(axis);
+        } else if (axis->orientation() == Qt::Vertical) {
+            valueAxis = qobject_cast<QValueAxis*>(axis);
+        }
+    }
+    
+    if (valueAxis && !chart->series().isEmpty()) {
+        double globalMinValue = std::numeric_limits<double>::max();
+        double globalMaxValue = std::numeric_limits<double>::min();
+        bool hasData = false;
+        
+        for (QAbstractSeries* series : chart->series()) {
+            if (QLineSeries* lineSeries = qobject_cast<QLineSeries*>(series)) {
+                QList<QPointF> points = lineSeries->points();
+                for (const QPointF& point : points) {
+                    globalMinValue = std::min(globalMinValue, point.y());
+                    globalMaxValue = std::max(globalMaxValue, point.y());
+                    hasData = true;
+                }
+            }
+        }
+        
+        if (hasData) {
+            double range = globalMaxValue - globalMinValue;
+            double padding = range * 0.1;
+            if (padding < 1000) padding = 1000;
+            
+            valueAxis->setRange(globalMinValue - padding, globalMaxValue + padding);
+        }
+    }
+    
+    if (timeAxis) {
+        QDateTime now = QDateTime::currentDateTime();
+        timeAxis->setRange(now.addSecs(-60), now.addSecs(10));
+    }
+    
+    logMessage("График подогнан под данные");
+}
+
+void ShiwaDiffPHCMainWindow::onResetZoom() {
+    if (!m_plotWidget || !m_plotWidget->chart()) return;
+    
+    m_zoomFactor = 1.0;
+    m_autoScale = true;
+    
+    QChart* chart = m_plotWidget->chart();
+    
+    // Сброс к начальным значениям
+    const auto axes = chart->axes();
+    QDateTimeAxis* timeAxis = nullptr;
+    QValueAxis* valueAxis = nullptr;
+    
+    for (auto* axis : axes) {
+        if (axis->orientation() == Qt::Horizontal) {
+            timeAxis = qobject_cast<QDateTimeAxis*>(axis);
+        } else if (axis->orientation() == Qt::Vertical) {
+            valueAxis = qobject_cast<QValueAxis*>(axis);
+        }
+    }
+    
+    if (valueAxis) {
+        valueAxis->setRange(0, 1000000); // Начальный диапазон
+    }
+    
+    if (timeAxis) {
+        QDateTime now = QDateTime::currentDateTime();
+        timeAxis->setRange(now.addSecs(-60), now.addSecs(10));
+    }
+    
+    logMessage("Масштаб сброшен к начальным значениям");
+}
+
+void ShiwaDiffPHCMainWindow::onToggleSeries() {
+    if (!m_plotWidget || !m_plotWidget->chart()) return;
+    
+    QChart* chart = m_plotWidget->chart();
+    QList<QAbstractSeries*> series = chart->series();
+    
+    if (series.isEmpty()) {
+        logMessage("Нет серий для переключения");
+        return;
+    }
+    
+    // Создаем диалог для выбора серий
+    QDialog dialog(this);
+    dialog.setWindowTitle("Управление сериями");
+    dialog.setModal(true);
+    
+    QVBoxLayout* layout = new QVBoxLayout(&dialog);
+    QLabel* label = new QLabel("Выберите серии для отображения:");
+    layout->addWidget(label);
+    
+    QList<QCheckBox*> checkboxes;
+    for (QAbstractSeries* s : series) {
+        QCheckBox* checkbox = new QCheckBox(s->name());
+        checkbox->setChecked(s->isVisible());
+        checkboxes.append(checkbox);
+        layout->addWidget(checkbox);
+    }
+    
+    QPushButton* okButton = new QPushButton("OK");
+    QPushButton* cancelButton = new QPushButton("Отмена");
+    QHBoxLayout* buttonLayout = new QHBoxLayout();
+    buttonLayout->addWidget(okButton);
+    buttonLayout->addWidget(cancelButton);
+    layout->addLayout(buttonLayout);
+    
+    connect(okButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+    connect(cancelButton, &QPushButton::clicked, &dialog, &QDialog::reject);
+    
+    if (dialog.exec() == QDialog::Accepted) {
+        for (int i = 0; i < series.size() && i < checkboxes.size(); ++i) {
+            series[i]->setVisible(checkboxes[i]->isChecked());
+            m_seriesVisibility[series[i]->name()] = checkboxes[i]->isChecked();
+        }
+        logMessage("Видимость серий обновлена");
+    }
 }
 
 // Main function for GUI application
