@@ -2,10 +2,10 @@ CC = g++
 CFLAGS = -O2 -Wall -std=c++17 -pthread 
 LDFLAGS = -lpthread 
 
-# Qt settings - Try Qt6 first, fallback to Qt5
-QT_CFLAGS = $(shell pkg-config --cflags Qt6Core Qt6Widgets Qt6Gui Qt6Charts Qt6HttpServer Qt6Network 2>/dev/null || echo "-I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtCharts -I/usr/include/x86_64-linux-gnu/qt6/QtHttpServer -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork") -fPIC
-QT_LDFLAGS = $(shell pkg-config --libs Qt6Core Qt6Widgets Qt6Gui Qt6Charts Qt6HttpServer Qt6Network 2>/dev/null || echo "-lQt6Core -lQt6Widgets -lQt6Gui -lQt6Charts -lQt6HttpServer -lQt6Network")
-MOC = $(shell which /usr/lib/qt6/libexec/moc 2>/dev/null || which moc-qt6 2>/dev/null || which moc 2>/dev/null || echo "moc")
+# Qt settings - Use Qt5
+QT_CFLAGS = $(shell pkg-config --cflags Qt5Core Qt5Widgets Qt5Gui Qt5Charts Qt5Network 2>/dev/null || echo "-I/usr/include/x86_64-linux-gnu/qt5 -I/usr/include/x86_64-linux-gnu/qt5/QtCore -I/usr/include/x86_64-linux-gnu/qt5/QtWidgets -I/usr/include/x86_64-linux-gnu/qt5/QtGui -I/usr/include/x86_64-linux-gnu/qt5/QtCharts -I/usr/include/x86_64-linux-gnu/qt5/QtNetwork") -fPIC
+QT_LDFLAGS = $(shell pkg-config --libs Qt5Core Qt5Widgets Qt5Gui Qt5Charts Qt5Network 2>/dev/null || echo "-lQt5Core -lQt5Widgets -lQt5Gui -lQt5Charts -lQt5Network")
+MOC = $(shell which /usr/lib/qt5/bin/moc 2>/dev/null || which moc-qt5 2>/dev/null || which moc 2>/dev/null || echo "moc")
 
 # Source files
 CORE_SOURCES = diffphc_core.cpp
@@ -24,7 +24,7 @@ GUI_MOC = diffphc_gui.moc
 
 # Targets
 TARGETS = shiwadiffphc shiwadiffphc-cli
-ifeq ($(shell pkg-config --exists Qt6Core Qt6Widgets Qt6Gui 2>/dev/null && echo "yes" || echo "no"), yes)
+ifeq ($(shell pkg-config --exists Qt5Core Qt5Widgets Qt5Gui Qt5Network Qt5Charts 2>/dev/null && echo "yes" || echo "no"), yes)
     TARGETS += shiwadiffphc-gui
 endif
 
@@ -79,24 +79,16 @@ check-deps:
 	@echo "Checking dependencies..."
 	@command -v $(CC) >/dev/null 2>&1 || { echo "Error: g++ not found. Please install build-essential."; exit 1; }
 	@echo "✓ C++ compiler found"
-	@if pkg-config --exists Qt6Core Qt6Widgets Qt6Gui 2>/dev/null; then \
-		echo "✓ Qt6 development libraries found"; \
-		if command -v $(MOC) >/dev/null 2>&1; then \
-			echo "✓ Qt MOC compiler found"; \
-		else \
-			echo "Warning: Qt MOC compiler not found. GUI will not be built."; \
-		fi; \
-	elif pkg-config --exists Qt5Core Qt5Widgets Qt5Gui 2>/dev/null; then \
-		echo "✓ Qt5 development libraries found (fallback)"; \
+	@if pkg-config --exists Qt5Core Qt5Widgets Qt5Gui 2>/dev/null; then \
+		echo "✓ Qt5 development libraries found"; \
 		if command -v $(MOC) >/dev/null 2>&1; then \
 			echo "✓ Qt MOC compiler found"; \
 		else \
 			echo "Warning: Qt MOC compiler not found. GUI will not be built."; \
 		fi; \
 	else \
-		echo "Warning: Qt6/Qt5 development libraries not found. GUI will not be built."; \
-		echo "  Install Qt6 with: sudo apt install qt6-base-dev qt6-charts-dev"; \
-		echo "  Install Qt5 with: sudo apt install qtbase5-dev qt5-qmake"; \
+		echo "Warning: Qt5 development libraries not found. GUI will not be built."; \
+		echo "  Install Qt5 with: sudo apt install qtbase5-dev libqt5charts5-dev qt5-qmake"; \
 	fi
 
 install-deps:

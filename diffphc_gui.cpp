@@ -1420,7 +1420,7 @@ void ShiwaDiffPHCMainWindow::onGenerateReport() {
         QFile file(fileName);
         if (file.open(QFile::WriteOnly | QFile::Text)) {
             QTextStream out(&file);
-            out.setEncoding(QStringConverter::Utf8);
+            out.setCodec("UTF-8");
             
             out << "ОТЧЕТ SHIWADIFFPHC - РАСШИРЕННЫЙ АНАЛИЗ\n";
             out << "==========================================\n\n";
