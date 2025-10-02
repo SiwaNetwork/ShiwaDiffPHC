@@ -3,9 +3,9 @@ CFLAGS = -O2 -Wall -std=c++17 -pthread
 LDFLAGS = -lpthread 
 
 # Qt settings - Try Qt6 first, fallback to Qt5
-QT_CFLAGS = $(shell pkg-config --cflags Qt6Core Qt6Widgets Qt6Gui Qt6Charts Qt6HttpServer Qt6Network 2>/dev/null || echo "-I/usr/include/x86_64-linux-gnu/qt6 -I/usr/include/x86_64-linux-gnu/qt6/QtCore -I/usr/include/x86_64-linux-gnu/qt6/QtWidgets -I/usr/include/x86_64-linux-gnu/qt6/QtGui -I/usr/include/x86_64-linux-gnu/qt6/QtCharts -I/usr/include/x86_64-linux-gnu/qt6/QtHttpServer -I/usr/include/x86_64-linux-gnu/qt6/QtNetwork") -fPIC
-QT_LDFLAGS = $(shell pkg-config --libs Qt6Core Qt6Widgets Qt6Gui Qt6Charts Qt6HttpServer Qt6Network 2>/dev/null || echo "-lQt6Core -lQt6Widgets -lQt6Gui -lQt6Charts -lQt6HttpServer -lQt6Network")
-MOC = $(shell which /usr/lib/qt6/libexec/moc 2>/dev/null || which moc-qt6 2>/dev/null || which moc 2>/dev/null || echo "moc")
+QT_CFLAGS = $(shell pkg-config --cflags Qt6Core Qt6Widgets Qt6Gui Qt6Charts Qt6HttpServer Qt6Network 2>/dev/null || pkg-config --cflags Qt5Core Qt5Widgets Qt5Gui Qt5Charts Qt5Network 2>/dev/null || echo "") -fPIC
+QT_LDFLAGS = $(shell pkg-config --libs Qt6Core Qt6Widgets Qt6Gui Qt6Charts Qt6HttpServer Qt6Network 2>/dev/null || pkg-config --libs Qt5Core Qt5Widgets Qt5Gui Qt5Charts Qt5Network 2>/dev/null || echo "")
+MOC = $(shell which /usr/lib/qt6/libexec/moc 2>/dev/null || which moc-qt6 2>/dev/null || which /usr/lib/qt5/bin/moc 2>/dev/null || which moc-qt5 2>/dev/null || which moc 2>/dev/null || echo "moc")
 
 # Source files
 CORE_SOURCES = diffphc_core.cpp

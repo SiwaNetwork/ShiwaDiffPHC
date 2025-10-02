@@ -28,7 +28,6 @@
 #include <QPlainTextEdit>
 #include <QChart>
 #include <QChartView>
-#include <QStringConverter>
 #include <QLineSeries>
 #include <QBarSeries>
 #include <QBarSet>
